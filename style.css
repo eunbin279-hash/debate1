@@ -1,0 +1,924 @@
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@300;400;700&display=swap');
+
+@font-face {
+  font-family: 'DosSammul';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_eight@1.0/DOSSaemmul.woff') format('woff');
+  font-weight: normal;
+  font-display: swap;
+}
+
+
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-color: #ffffff;
+  --border-color: #0000ff;
+  /* Sharp Blue */
+  --point-color: #ff6600;
+  /* Bright Orange */
+  --bubble-bg: #ffffff;
+  --pixel-size: 2px;
+  --sidebar-width: 280px;
+}
+
+body {
+  font-family: 'DosSammul', monospace;
+  background: var(--bg-color);
+  color: var(--border-color);
+  font-size: 16px;
+  /* Allow page scrolling on small screens instead of clipping */
+  overflow: auto;
+}
+
+.main-container {
+  display: flex;
+  min-height: 100vh;
+  gap: 0;
+}
+
+.yard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  /* Allow bubble stacks to overflow outside the yard so they aren't clipped */
+  overflow: visible;
+  background-color: #ffffff;
+  /* Revert to plain white or simple bg */
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  /* Previously a strong blue border was added to make the overlay visible.
+    Use a much subtler border so it doesn't steal focus from the bubble content. */
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+  background-color: #fff;
+  /* Pixel Dither/Dot Pattern moved here */
+  background-image:
+    radial-gradient(var(--border-color) 0.5px, transparent 0.5px),
+    radial-gradient(var(--border-color) 0.5px, transparent 0.5px);
+  background-size: 4px 4px;
+  background-position: 0 0, 2px 2px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-shadow: 4px 4px 0 var(--border-color);
+}
+
+.sidebar-header h3 {
+  font-size: 24px;
+  margin-bottom: 5px;
+  color: var(--point-color);
+  /* Orange Point */
+}
+
+.sidebar-header p {
+  font-size: 14px;
+  color: #666;
+}
+
+.top {
+  padding: 30px 20px 10px 20px;
+  text-align: center;
+  position: relative;
+  /* Not absolute anymore */
+  z-index: 5000;
+}
+
+.top h1 {
+  margin: 0;
+  font-size: 32px;
+  border-bottom: 4px dotted var(--point-color);
+  /* Pixel-y underline */
+  color: var(--border-color);
+  display: inline-block;
+}
+
+.cats {
+  position: relative;
+  flex: 1;
+  margin-top: 20px;
+  /* Safe buffer */
+  width: 100%;
+}
+
+.cat {
+  position: absolute;
+  width: 120px;
+  /* Reduced from 140px */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Bubble Stack System */
+.bubble-stack {
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  /* Keep bubbles centered */
+  gap: 10px;
+  width: auto;
+  min-width: 180px;
+  max-width: 320px;
+  max-height: 220px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.cat.expanded {
+  z-index: 100;
+  /* Bring expanded cat to front */
+}
+
+.cat.expanded .bubble-stack {
+  pointer-events: auto;
+  bottom: 110%;
+  /* Back to stacking above cat */
+  max-height: 45vh;
+  /* Stricter height to avoid screen clipping */
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  z-index: 1000;
+  scrollbar-width: thin;
+  /* Show thin scrollbar for UX */
+  scrollbar-color: #ccc transparent;
+}
+
+.cat.expanded .bubble-stack::-webkit-scrollbar {
+  display: none;
+}
+
+/* Handle clipping for top-side cats */
+.cat[style*="top:10%"].expanded .bubble-stack,
+.cat[style*="top:15%"].expanded .bubble-stack {
+  bottom: auto;
+  top: 10px;
+  /* Start below title topic */
+}
+
+.bubble {
+  background: var(--bubble-bg);
+  padding: 10px 14px;
+  border: 4px solid var(--border-color);
+  /* Thicker blue border */
+  border-radius: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--border-color);
+  word-break: keep-all;
+  position: relative;
+  box-shadow: 4px 4px 0 var(--border-color);
+  transition: opacity 0.3s, transform 0.3s;
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: none;
+  flex-shrink: 0;
+  width: fit-content;
+  max-width: 220px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.user-arguments {
+  position: absolute;
+  bottom: 120px;
+  right: 20px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  width: 300px;
+  max-height: 20vh;
+  /* Reduced from 40vh */
+  overflow-y: auto;
+  z-index: 50;
+  scrollbar-width: none;
+}
+
+.user-arguments::-webkit-scrollbar {
+  display: none;
+}
+
+.user-bubble {
+  background: #fff;
+  padding: 10px 15px;
+  border: 4px solid var(--border-color);
+  border-radius: 0;
+  font-size: 15px;
+  box-shadow: -4px 4px 0 var(--border-color);
+  align-self: flex-end;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Only the LATEST bubble in the stack is prominent when collapsed */
+.bubble:last-child {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+/* When the cat is clicked/expanded, all bubbles become prominent */
+.cat.expanded .bubble {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+  max-width: 250px;
+  line-clamp: unset;
+  -webkit-line-clamp: unset;
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 700px) {
+  :root {
+    --sidebar-width: 100%;
+  }
+
+  .main-container {
+    flex-direction: column;
+  }
+
+  .yard {
+    order: 1;
+    min-height: 60vh;
+  }
+
+  .sidebar {
+    order: 2;
+    width: 100%;
+    border-left: none;
+    border-top: 4px solid var(--border-color);
+    box-shadow: none;
+    padding: 12px;
+  }
+
+  .cat {
+    width: 90px;
+  }
+
+  .cat img {
+    width: 88px;
+    height: 88px;
+  }
+
+  .bubble-stack {
+    min-width: 140px;
+    max-width: 260px;
+  }
+
+  .bubble {
+    /* Mobile: increase readability */
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 12px 16px;
+    max-width: calc(100vw - 40px);
+    line-clamp: unset;
+    -webkit-line-clamp: unset;
+    text-align: left;
+    color: #111;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: none;
+  }
+
+  .user-arguments {
+    right: 10px;
+    left: 10px;
+    width: auto;
+    bottom: 140px;
+    max-height: 25vh;
+  }
+
+  .nametag {
+    bottom: 110px;
+    font-size: 13px;
+  }
+
+  .inputwrap {
+    max-width: calc(100% - 32px);
+    padding: 6px;
+    gap: 8px;
+  }
+
+  .send {
+    padding: 12px 18px;
+  }
+
+  /* Make action buttons bigger for touch */
+  .bubble-actions button {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}
+
+.bubble-actions {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #ccc;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bubble-actions button {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 2px solid var(--border-color);
+  background: #fff;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  color: var(--border-color);
+}
+
+.bubble-actions button:hover {
+  background: #fdfdfd;
+  transform: scale(1.05);
+}
+
+.bubble-rebut-input {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bubble-rebut-input textarea {
+  width: 100%;
+  height: 50px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  resize: none;
+}
+
+.bubble-rebut-input button {
+  align-self: flex-end;
+  background: #333;
+  color: #fff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cat img {
+  width: 110px;
+  height: 110px;
+  object-fit: contain;
+  /* Digital Blue Filter */
+  filter: grayscale(1) sepia(1) hue-rotate(190deg) saturate(1500%) brightness(1.2) drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.1));
+  transition: transform 0.3s, filter 0.5s;
+}
+
+.cat:hover img {
+  transform: scale(1.05) rotate(2deg);
+  filter: grayscale(1) sepia(1) hue-rotate(190deg) saturate(3000%) brightness(1.1);
+}
+
+.bottom {
+  margin-top: auto;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  border-top: 2px dashed var(--border-color);
+}
+
+.nametag {
+  position: absolute;
+  left: 50%;
+  bottom: 85px;
+  transform: translateX(-50%) rotate(-2deg);
+  background: var(--point-color);
+  color: #fff;
+  border: 4px solid var(--border-color);
+  padding: 4px 12px;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.inputwrap {
+  display: flex;
+  gap: 10px;
+  background: #fff;
+  padding: 8px;
+  border: 4px solid var(--border-color);
+  border-radius: 0;
+  width: 100%;
+  max-width: 520px;
+}
+
+#userInput {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  outline: none;
+  font-family: inherit;
+  font-size: 18px;
+  padding: 8px 6px;
+}
+
+.send {
+  padding: 10px 18px;
+  border: 4px solid var(--border-color);
+  background: var(--point-color);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--border-color);
+  touch-action: manipulation;
+}
+
+.send:hover {
+  background: var(--border-color);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 100;
+}
+
+.modal .modal-card {
+  background: #fff;
+  border: 4px solid var(--border-color);
+  padding: 25px;
+  border-radius: var(--sketch-radius-lg);
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.1);
+  filter: url(#pencil-sketch);
+}
+
+.modal-content {
+  white-space: pre-wrap;
+  padding: 15px;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--sketch-radius);
+  margin-bottom: 15px;
+  background: #fdfdfd;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.modal-actions button {
+  padding: 10px 20px;
+  border: 2px solid var(--border-color);
+  background: #fff;
+  border-radius: var(--sketch-radius);
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.modal-actions button:hover {
+  background: #f0f0f0;
+}
+
+.rebut {
+  margin-top: 12px;
+}
+
+.rebut textarea {
+  width: 100%;
+  height: 80px;
+  border: 2px solid var(--border-color);
+  padding: 10px;
+  border-radius: var(--sketch-radius);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-5px) rotate(-1deg);
+  }
+
+  50% {
+    transform: translateX(5px) rotate(1deg);
+  }
+
+  75% {
+    transform: translateX(-5px) rotate(-1deg);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+.dim::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  z-index: 50;
+}
+
+.fade-out {
+  transition: opacity 0.5s, transform 0.5s;
+  opacity: 0;
+  transform: translateY(-20px) scale(0.8);
+}
+
+.adopt-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+  overflow-y: auto;
+  max-height: 60vh;
+  padding-right: 6px;
+}
+
+.adopted-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  border: 2px dashed var(--border-color);
+  padding: 15px;
+  border-radius: var(--sketch-radius);
+  background: #fff;
+  animation: slideIn 0.3s ease-out;
+  text-align: center;
+  filter: url(#pencil-sketch);
+}
+
+.adopted-item img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  /* Keep Blue in sidebar */
+  filter: grayscale(1) sepia(1) hue-rotate(190deg) saturate(1500%) brightness(1.2);
+}
+
+@media (max-width:700px) {
+  .adopted-item img {
+    width: 56px;
+    height: 56px;
+  }
+
+  .adopted-item .adopted-text {
+    font-size: 14px;
+  }
+}
+
+.adopted-item .adopted-text {
+  font-size: 16px;
+  font-family: 'DosSammul', monospace;
+  color: #333;
+  line-height: 1.4;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-full {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  white-space: pre-wrap;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.details {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  padding: 5px 10px;
+  border-radius: var(--sketch-radius);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Hurt Effect Overlay */
+.hurt-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 200px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  animation: slideDownEffect 0.5s ease-out;
+}
+
+.hurt-msg {
+  color: #fff;
+  font-size: 38px;
+  font-family: 'DosSammul';
+  text-shadow:
+    4px 4px 0 var(--border-color),
+    -4px -4px 0 var(--border-color),
+    4px -4px 0 var(--border-color),
+    -4px 4px 0 var(--border-color);
+  /* Heavy Blue pixel-style outline */
+  letter-spacing: 2px;
+  animation: blinkRed 0.6s infinite alternate;
+}
+
+@keyframes slideDownEffect {
+  from {
+    transform: translateY(-100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes blinkRed {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+/* Shrunken Cat Effect - Scale to 80% with full clarity */
+.cat.shrunken-cat {
+  transition: all 0.8s ease-in-out !important;
+  transform: scale(0.8) rotate(-5deg) !important;
+  /* Smooth 20% reduction */
+  opacity: 1 !important;
+  filter: none !important;
+  /* No blur or grayscale */
+  z-index: 10;
+}
+
+.cat.shrunken-cat img {
+  transform: none !important;
+  /* Revert image-only scale */
+  filter: grayscale(1) sepia(1) hue-rotate(190deg) saturate(1000%) brightness(0.9) !important;
+}
+
+@keyframes shrunkenShake {
+
+  0%,
+  100% {
+    transform: scale(0.8) rotate(-5deg);
+  }
+
+  25% {
+    transform: scale(0.8) rotate(-7deg) translateX(-3px);
+  }
+
+  75% {
+    transform: scale(0.8) rotate(-3deg) translateX(3px);
+  }
+}
+
+.cat.shrunken-cat.shake {
+  animation: shrunkenShake 0.4s ease-in-out infinite;
+}
+
+/* Bubble Style History Overlay */
+.history-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.4);
+  /* Much lighter, airy background */
+  backdrop-filter: blur(1px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 5000;
+}
+
+.history-card {
+  background: transparent;
+  border: none;
+  width: auto;
+  min-width: 320px;
+  max-width: 400px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-list {
+  flex: 1;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+  justify-content: flex-end;
+  /* Stack from bottom */
+  overflow-y: auto;
+  padding: 20px;
+  scrollbar-width: none;
+}
+
+.history-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* Inherit bubble styles but for history items */
+.history-item {
+  background: #fff;
+  padding: 12px 16px;
+  border: 4px solid var(--border-color);
+  border-radius: 0;
+  font-size: 14px;
+  font-family: 'DosSammul', monospace;
+  /* Unified Font */
+  width: fit-content;
+  max-width: 300px;
+  box-shadow: 4px 4px 0 var(--border-color);
+  text-align: center;
+}
+
+.history-item strong {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+/* Floating bubble overlay used when a cat is expanded (not clipped by yard) */
+.bubble-stack-overlay {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+  pointer-events: auto;
+  max-width: 90vw;
+  box-sizing: border-box;
+  padding: 10px;
+}
+
+/* Close (X) button for overlay */
+.bubble-stack-overlay .overlay-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.6);
+  padding: 6px 8px;
+}
+
+.bubble-stack-overlay {
+  position: fixed;
+}
+
+/* Inside overlay, bubbles should accept pointer events and show full content */
+.bubble-stack-overlay .bubble {
+  pointer-events: auto;
+  max-width: 100%;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  text-align: left;
+  margin-bottom: 8px;
+}
+
+.bubble-stack-overlay .bubble-actions {
+  pointer-events: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* Ensure overlay buttons are tappable and visible */
+.bubble-stack-overlay .bubble-actions button {
+  touch-action: manipulation;
+  background: var(--point-color);
+  color: #fff;
+  border: 2px solid var(--border-color);
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+@media (max-width:700px) {
+  .bubble-stack-overlay {
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: calc(100vw - 20px) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    padding: 8px !important;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.04) !important;
+  }
+
+  .bubble-stack-overlay .bubble {
+    text-align: left;
+    font-size: 16px;
+    line-height: 1.6;
+    width: 100%;
+  }
+
+  .bubble-stack-overlay .bubble-actions button {
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+}
+
+/* Shrunken state now uses global scale, no special stack rule needed */
+
+.reply-count {
+  font-size: 12px;
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff6b6b;
+  color: #fff;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+}

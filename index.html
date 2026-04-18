@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>토론마당 냥</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="main-container">
+    <div class="yard" id="yard">
+      <div id="hurtOverlay" class="hurt-overlay hidden">
+        <div class="hurt-msg">고양이가 상처를 받았습니다...</div>
+      </div>
+      <header class="top">
+        <h1>[인간은 악하다]</h1>
+      </header>
+      <div id="userArguments" class="user-arguments"></div>
+
+      <!-- cats placed around -->
+      <div class="cats" id="cats">
+        <div class="cat" data-id="c1" data-text="이 주장에는 논리적 허점이 있어요. 근거를 다시 제시해 주세요." style="left:10%;top:20%">
+          <div class="bubble-stack"></div>
+          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
+        </div>
+        <div class="cat" data-id="c2" data-text="이 부분은 사실과 다릅니다. 출처를 보여주실래요?" style="left:40%;top:15%">
+          <div class="bubble-stack"></div>
+          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
+        </div>
+        <div class="cat" data-id="c3" data-text="저는 이점이 특히 중요하다고 생각해요. 추가 설명이 필요합니다." style="left:75%;top:25%">
+          <div class="bubble-stack"></div>
+          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
+        </div>
+        <div class="cat" data-id="c4" data-text="냥? 그건 좀 너무 극단적인 생각이다냥." style="left:20%;top:55%">
+          <div class="bubble-stack"></div>
+          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
+        </div>
+        <div class="cat" data-id="c5" data-text="다른 관점에서도 생각해볼 수 있지 않을까냥?" style="left:50%;top:65%">
+          <div class="bubble-stack"></div>
+          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
+        </div>
+        <div class="cat" data-id="c6" data-text="나는 그 의견에 전적으로 동의할 수 없다냥!" style="left:80%;top:55%">
+          <div class="bubble-stack"></div>
+          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
+        </div>
+      </div>
+
+      <div class="bottom">
+        <div class="nametag">의견 나누기</div>
+        <div class="inputwrap">
+          <input type="text" id="userInput" placeholder="네 생각은 어때?" maxlength="30" />
+          <span id="charCount" style="font-size:12px; color:#888; margin-right:5px;">0/30</span>
+          <button id="sendBtn" class="send">외치기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Persistent Sidebar for My Yard -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3>우리 집</h3>
+        <p>나를 설득한 친구들</p>
+      </div>
+      <div id="adoptList" class="adopt-list">아직 없습니다.</div>
+    </aside>
+  </div>
+
+  <div id="historyModal" class="history-modal hidden">
+    <div class="history-card">
+      <div id="historyList" class="history-list"></div>
+      <button id="historyClose" class="send" style="margin-top:20px;">대화 덮기</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+
+  <!-- SVG Filters for Sketch/Pencil Effect -->
+  <svg style="display: none;">
+    <filter id="pencil-sketch" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+</body>
+
+</html>
