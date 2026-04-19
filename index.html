@@ -15,35 +15,16 @@
         <div class="hurt-msg">고양이가 상처를 받았습니다...</div>
       </div>
       <header class="top">
-        <h1>[인간은 악하다]</h1>
+        <h1>[토론주제]</h1>
       </header>
-      <div id="userArguments" class="user-arguments"></div>
 
       <!-- cats placed around -->
       <div class="cats" id="cats">
-        <div class="cat" data-id="c1" data-text="이 주장에는 논리적 허점이 있어요. 근거를 다시 제시해 주세요." style="left:10%;top:20%">
+        <div class="cat" data-id="user" style="left:50%;bottom:20%;top:auto;transform:translateX(-50%);">
           <div class="bubble-stack"></div>
-          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
-        </div>
-        <div class="cat" data-id="c2" data-text="이 부분은 사실과 다릅니다. 출처를 보여주실래요?" style="left:40%;top:15%">
-          <div class="bubble-stack"></div>
-          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
-        </div>
-        <div class="cat" data-id="c3" data-text="저는 이점이 특히 중요하다고 생각해요. 추가 설명이 필요합니다." style="left:75%;top:25%">
-          <div class="bubble-stack"></div>
-          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
-        </div>
-        <div class="cat" data-id="c4" data-text="냥? 그건 좀 너무 극단적인 생각이다냥." style="left:20%;top:55%">
-          <div class="bubble-stack"></div>
-          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
-        </div>
-        <div class="cat" data-id="c5" data-text="다른 관점에서도 생각해볼 수 있지 않을까냥?" style="left:50%;top:65%">
-          <div class="bubble-stack"></div>
-          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
-        </div>
-        <div class="cat" data-id="c6" data-text="나는 그 의견에 전적으로 동의할 수 없다냥!" style="left:80%;top:55%">
-          <div class="bubble-stack"></div>
-          <img src="img/cat_neutral.png" alt="cat" class="cat-img">
+          <div class="nametag" style="position:absolute;bottom:-30px;left:auto;transform:none;">나</div>
+          <img src="img/cat_neutral.png" alt="user cat" class="cat-img"
+            style="filter: grayscale(0) hue-rotate(0deg) saturate(100%) brightness(1);">
         </div>
       </div>
 
@@ -53,6 +34,7 @@
           <input type="text" id="userInput" placeholder="네 생각은 어때?" maxlength="30" />
           <span id="charCount" style="font-size:12px; color:#888; margin-right:5px;">0/30</span>
           <button id="sendBtn" class="send">외치기</button>
+          <button id="simToggleBtn" class="send" style="background:#555; margin-left:5px;">시뮬레이션</button>
         </div>
       </div>
     </div>
@@ -74,6 +56,45 @@
     </div>
   </div>
 
+  <!-- 시뮬레이션 모달 -->
+  <div id="simModal" class="sim-modal hidden">
+    <div class="sim-overlay"></div>
+    <div class="sim-scene">
+      <div id="simCharacter" class="sim-character hidden">
+        <img src="img/grandma.png" alt="할머니"
+          style="width:200px; image-rendering: pixelated; display: block; margin-bottom: 25px;">
+      </div>
+      <div id="simNote" class="sim-note hidden">
+        <b>상대 측 의견</b><br><br>
+        최근 동물원에 대항 의견이 마니 나옴미다. <br>
+        동물의 권리능 보장대야 함미다.<br>
+        자연에성 살수업는 경우두 이씁니당.
+      </div>
+    </div>
+
+    <div class="sim-ui">
+      <div id="simSpeaker" class="sim-speaker"></div>
+      <div id="simText" class="sim-text"></div>
+      <div id="simChoices" class="sim-choices hidden"></div>
+      <div id="simNextIndicator" class="sim-next-indicator">▼ Click</div>
+    </div>
+
+    <!-- 타이핑 받아적기 UI -->
+    <div id="simTypeUI" class="sim-type-ui hidden">
+      <div class="sim-type-header">맞춤법 고쳐서 받아적기</div>
+      <textarea id="simTypeInput" placeholder="할머니의 쪽지 내용을 올바른 맞춤법으로 다시 적어주세요."></textarea>
+      <div class="sim-type-actions">
+        <span id="simTypeCount" style="font-size:12px; color:#888;">0/100</span>
+        <div>
+          <button id="simTypeSubmitBtn" class="sim-type-submit">작성 완료</button>
+        </div>
+      </div>
+    </div>
+
+    <button id="simFinalBtn" class="sim-final-btn hidden">입론하기</button>
+  </div>
+
+  <script src="https://debate-md2-2603.web.app/debate-core.js" data-architect-id="ian"></script>
   <script src="app.js"></script>
 
   <!-- SVG Filters for Sketch/Pencil Effect -->

@@ -922,3 +922,241 @@ body {
   border-radius: 50%;
   border: 1px solid var(--border-color);
 }
+
+/* Simulation Game Styles */
+.sim-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.sim-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1;
+}
+
+.sim-scene {
+  position: absolute;
+  inset: 0;
+  bottom: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.sim-character {
+  transition: transform 0.3s, opacity 0.3s;
+  transform: translateY(20px);
+}
+.sim-character.show {
+  transform: translateY(0);
+}
+
+.sim-note {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8) rotate(-2deg);
+  background: #fdf5e6;
+  border: 4px solid var(--border-color);
+  padding: 30px;
+  font-family: 'Gaegu', cursive, sans-serif;
+  font-size: 24px;
+  color: #333;
+  box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.4s;
+  z-index: 3;
+  line-height:1.4;
+  text-align:center;
+}
+.sim-note b {
+  font-family: inherit;
+  font-size: 28px;
+  color: var(--point-color);
+}
+.sim-note.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1) rotate(2deg);
+  pointer-events: auto;
+}
+.sim-note.dropped {
+  opacity: 1;
+  transform: translate(-50%, 150%) scale(0.8) rotate(15deg);
+}
+
+.sim-ui {
+  position: relative;
+  z-index: 10;
+  background: #fff;
+  border-top: 4px solid var(--border-color);
+  padding: 20px 30px;
+  height: 220px;
+  box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+  cursor: pointer;
+  display:flex;
+  flex-direction:column;
+}
+
+.sim-speaker {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--point-color);
+  margin-bottom: 12px;
+}
+
+.sim-text {
+  font-size: 18px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.sim-choices {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sim-choices button {
+  padding: 10px 15px;
+  border: 2px solid var(--border-color);
+  background: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  color: var(--border-color);
+  font-weight: bold;
+}
+
+.sim-choices button:hover {
+  background: var(--border-color);
+  color: #fff;
+}
+
+.sim-next-indicator {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  font-size: 14px;
+  color: var(--border-color);
+  animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.sim-final-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 15px 30px;
+  font-size: 24px;
+  background: var(--point-color);
+  color: #fff;
+  border: 4px solid var(--border-color);
+  cursor: pointer;
+  z-index: 20;
+  box-shadow: 4px 4px 0 var(--border-color);
+  animation: pulse 1.5s infinite;
+  font-family: inherit;
+  font-weight: bold;
+}
+.sim-final-btn:hover {
+  background: var(--border-color);
+}
+@keyframes pulse {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.05); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+.sim-type-ui {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 4px solid var(--border-color);
+  padding: 15px 20px;
+  width: 90%;
+  max-width: 500px;
+  z-index: 15;
+  box-shadow: 6px 6px 0 var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translate(-50%, 20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.sim-type-header {
+  font-weight: bold;
+  color: var(--point-color);
+  font-size: 18px;
+}
+
+.sim-type-ui textarea {
+  width: 100%;
+  height: 80px;
+  border: 2px dashed rgb(200,200,200);
+  padding: 10px;
+  font-family: inherit;
+  font-size: 16px;
+  resize: none;
+  border-radius: 0;
+}
+
+.sim-type-ui textarea:focus {
+  outline: none;
+  border-color: var(--border-color);
+}
+
+.sim-type-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sim-type-submit, .sim-type-cancel {
+  padding: 8px 16px;
+  border: 2px solid var(--border-color);
+  font-weight: bold;
+  font-family: inherit;
+  cursor: pointer;
+  margin-left: 5px;
+}
+
+.sim-type-submit {
+  background: var(--point-color);
+  color: #fff;
+}
+
+.sim-type-submit:hover {
+  background: var(--border-color);
+}
+
+.sim-type-cancel {
+  background: #fff;
+  color: #333;
+}
+.sim-type-cancel:hover {
+  background: #ddd;
+}

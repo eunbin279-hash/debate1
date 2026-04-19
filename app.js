@@ -7,6 +7,136 @@ const userInput = document.getElementById('userInput')
 
 let adopted = []
 const threads = {}
+window.debateInfo = null;
+
+if (window.DebateCore) {
+  window.DebateCore.onReady(function (info) {
+    if (!info.nickname) {
+      document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; font-weight:bold; font-size:1.2rem;">토론 플랫폼을 통해 접속하세요.</div>';
+      return;
+    }
+    if (info.status !== 'active' && info.status !== 'pending') {
+      document.body.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100vh; font-weight:bold; font-size:1.2rem;">토론이 진행중이지 않습니다. (상태: ${info.status})</div>`;
+      return;
+    }
+    window.debateInfo = info;
+    window.myMessages = [];
+    window.myAgrees = [];
+    window.saveMyPayload = () => {
+      if (!window.debateInfo) return;
+      window.debateInfo.savePayload({
+        messages: window.myMessages || [],
+        agrees: window.myAgrees || [],
+        side: window.debateInfo.side || 'unassigned'
+      }).catch(err => console.error('Payload save error:', err));
+    };
+
+    // Attempt saving side once to initialize
+    window.saveMyPayload();
+
+    window.usedSlots = new Set();
+    const slots = [
+      { left: 10, top: 15 }, { left: 25, top: 25 }, { left: 75, top: 15 }, { left: 85, top: 35 },
+      { left: 15, top: 45 }, { left: 80, top: 55 }, { left: 30, top: 60 }, { left: 70, top: 65 },
+      { left: 5, top: 30 }, { left: 90, top: 20 }, { left: 20, top: 35 }, { left: 65, top: 40 },
+      { left: 35, top: 45 }, { left: 60, top: 20 }, { left: 10, top: 55 }, { left: 85, top: 50 },
+    ];
+
+    // Listen for payloads
+    info.onPayloadsChange(payloads => {
+      const catsWrap = document.getElementById('cats');
+
+      // Clear all threads to rebuild
+      Object.keys(threads).forEach(k => { threads[k] = [] });
+
+      // Collect all messages and agrees
+      let allMessages = [];
+      let agreeCounts = {};
+      Object.keys(payloads).forEach(nick => {
+        const data = payloads[nick];
+
+        if (nick === info.nickname) {
+          window.myMessages = data.messages || [];
+          window.myAgrees = data.agrees || [];
+        }
+
+        if (data && data.messages && Array.isArray(data.messages)) {
+          data.messages.forEach(m => allMessages.push({ ...m, sender: nick, side: data.side }));
+        }
+        if (data && data.agrees && Array.isArray(data.agrees)) {
+          data.agrees.forEach(id => {
+            agreeCounts[id] = (agreeCounts[id] || 0) + 1;
+          });
+        }
+      });
+      window.agreeCounts = agreeCounts;
+      window.allMessages = allMessages;
+
+      allMessages.sort((a, b) => a.time - b.time);
+
+      // Reconstruct adopted array
+      adopted = [];
+      if (window.myAgrees) {
+        window.myAgrees.forEach(bubbleId => {
+          const msg = allMessages.find(m => `${m.sender}_${m.time}` === bubbleId);
+          if (msg) adopted.push({ id: bubbleId, text: msg.text, sender: msg.sender });
+        });
+      }
+      allMessages.forEach(m => {
+        let localTarget = m.target === info.nickname ? 'user' : m.target;
+        let fromStr = m.sender === info.nickname ? 'user' : 'cat';
+        if (!threads[localTarget]) threads[localTarget] = [];
+        threads[localTarget].push({
+          from: fromStr,
+          text: m.text,
+          time: m.time,
+          sender: m.sender
+        });
+      });
+
+      updateAdoptList();
+
+      // Render all cats (and create if missing)
+      const MAX_CATS = 6;
+      const usersToRender = Object.keys(threads).filter(t => t !== 'user').slice(-MAX_CATS);
+
+      // Clean up old cats beyond max limit
+      Array.from(document.querySelectorAll('.cat')).forEach(catEl => {
+        const id = catEl.dataset.id;
+        if (id !== 'user' && !usersToRender.includes(id)) {
+          window.usedSlots.delete(parseFloat(catEl.style.left));
+          catEl.remove();
+        }
+      });
+
+      usersToRender.forEach(nick => {
+        let catEl = document.querySelector(`.cat[data-id="${nick}"]`);
+        if (!catEl) {
+          catEl = document.createElement('div');
+          catEl.className = 'cat';
+          catEl.dataset.id = nick;
+
+          let slot = slots.find(s => !window.usedSlots.has(s.left));
+          if (!slot) slot = { left: 10 + Math.random() * 80, top: 10 + Math.random() * 60 };
+          window.usedSlots.add(slot.left);
+
+          catEl.style.left = `${slot.left}%`;
+          catEl.style.top = `${slot.top}%`;
+          catEl.innerHTML = `
+            <div class="bubble-stack"></div>
+            <img src="img/cat_neutral.png" alt="cat" class="cat-img">
+          `;
+          catsWrap.appendChild(catEl);
+        }
+        renderCatBubbles(catEl);
+      });
+
+      // Also render user cat
+      const userCatEl = document.querySelector('.cat[data-id="user"]');
+      if (userCatEl) renderCatBubbles(userCatEl);
+    });
+  });
+}
 
 const CAT_IMAGES = {
   NEUTRAL: 'img/cat_neutral.png',
@@ -89,6 +219,8 @@ catsWrap.addEventListener('click', e => {
   cat.classList.toggle('expanded')
   if (!cat.classList.contains('expanded')) {
     cat._showHistory = false
+  } else {
+    cat._showHistory = true
   }
   renderCatBubbles(cat)
 })
@@ -144,60 +276,74 @@ function renderCatBubbles(catEl) {
 
   // Build bubbles into overlay
   const showHistory = catEl._showHistory || false
-  if (!showHistory && thread.length > 1) {
-    const viewMoreBtn = document.createElement('button')
-    viewMoreBtn.className = 'view-more-btn'
-    viewMoreBtn.textContent = '자세히 보기'
-    viewMoreBtn.style.padding = '5px 10px'
-    viewMoreBtn.style.marginBottom = '10px'
-    viewMoreBtn.style.border = '2px dashed var(--border-color)'
-    viewMoreBtn.style.background = '#fff'
-    viewMoreBtn.style.color = 'var(--border-color)'
-    viewMoreBtn.style.cursor = 'pointer'
-    viewMoreBtn.style.fontFamily = 'inherit'
-    viewMoreBtn.style.fontWeight = 'bold'
-    viewMoreBtn.onclick = () => {
-      catEl._showHistory = true
-      renderCatBubbles(catEl)
-    }
-    overlay.appendChild(viewMoreBtn)
-  }
 
   const msgsToShow = showHistory ? thread : [thread[thread.length - 1]]
 
-  msgsToShow.forEach((msg) => {
+  msgsToShow.forEach((msg, idx) => {
     const isLastMsg = (msg === thread[thread.length - 1])
     const b = document.createElement('div')
     b.className = `bubble ${msg.from}`
     b.style.opacity = '1'
     b.style.transform = 'scale(1)'
 
-    const fromLabel = document.createElement('div')
-    fromLabel.style.fontSize = '12px'
-    fromLabel.style.color = '#888'
-    fromLabel.style.marginBottom = '4px'
-    fromLabel.textContent = msg.from === 'user' ? '나' : '냥이'
-    b.appendChild(fromLabel)
+    if (thread.length > 1) {
+      b.style.cursor = 'pointer'
+      b.onclick = (e) => {
+        e.stopPropagation()
+        catEl._showHistory = !showHistory
+        renderCatBubbles(catEl)
+      }
+
+      // Add a small hint to the very first bubble rendered in the stack
+      if (idx === 0) {
+        const hint = document.createElement('div')
+        hint.style.fontSize = '10px'
+        hint.style.color = '#888'
+        hint.style.textAlign = 'center'
+        hint.style.marginBottom = '5px'
+        hint.textContent = showHistory ? '▲ 말풍선을 눌러 접기' : '▼ 말풍선을 눌러 이전 대화 보기'
+        overlay.appendChild(hint)
+      }
+    }
+
+    if (msg.from === 'user') {
+      const fromLabel = document.createElement('div')
+      fromLabel.style.fontSize = '12px'
+      fromLabel.style.color = '#888'
+      fromLabel.style.marginBottom = '4px'
+      fromLabel.textContent = '나'
+      b.appendChild(fromLabel)
+    }
+
+    const bubbleId = `${msg.sender}_${msg.time}`;
 
     const content = document.createElement('div')
     content.textContent = msg.text
     b.appendChild(content)
 
-    if (msg.from === 'cat' && isLastMsg) {
+    if (msg.from === 'cat') {
       const actions = document.createElement('div')
       actions.className = 'bubble-actions'
 
+      const agreeCount = window.agreeCounts ? (window.agreeCounts[bubbleId] || 0) : 0;
       const agree = document.createElement('button')
-      agree.textContent = '인정'
-      agree.onclick = () => handleAgree(catEl)
+
+      if (window.myAgrees && window.myAgrees.includes(bubbleId)) {
+        agree.textContent = `인정됨 (${agreeCount})`;
+        agree.disabled = true;
+        agree.style.opacity = '0.5';
+      } else {
+        agree.textContent = `인정 (${agreeCount})`;
+        agree.onclick = (e) => { e.stopPropagation(); handleAgreeBubble(bubbleId, msg, catEl); };
+      }
 
       const reject = document.createElement('button')
       reject.textContent = '인정 X'
-      reject.onclick = () => handleReject(catEl)
+      reject.onclick = (e) => { e.stopPropagation(); handleReject(catEl) }
 
       const showRebut = document.createElement('button')
       showRebut.textContent = '내 생각엔...'
-      showRebut.onclick = () => toggleRebutInput(b, catEl)
+      showRebut.onclick = (e) => { e.stopPropagation(); toggleRebutInput(b, catEl) }
 
       actions.appendChild(agree)
       actions.appendChild(reject)
@@ -250,31 +396,39 @@ function renderCatBubbles(catEl) {
       overlay.style.top = top + 'px'
     }
 
-    // Ensure overlay scroll shows latest
-    overlay.scrollTop = overlay.scrollHeight
+    // Ensure overlay scroll. If history is shown just now, scroll to top? Or keep it at bottom?
+    if (showHistory) {
+      // Just keep scroll or let them scroll. Let's make it scroll to top so they see history.
+      overlay.scrollTop = 0
+    } else {
+      overlay.scrollTop = overlay.scrollHeight
+    }
   }
 
   // Schedule two frames to allow layout to stabilize (safer on some browsers)
   requestAnimationFrame(() => requestAnimationFrame(positionOverlay))
 }
 
-function handleAgree(catEl) {
-  const id = catEl.dataset.id
-  // Prevent adding the same cat multiple times
-  if (adopted.some(a => a.id === id)) return
+function handleAgreeBubble(bubbleId, msg, catEl) {
+  if (!window.myAgrees) window.myAgrees = [];
+  if (window.myAgrees.includes(bubbleId)) return;
+  window.myAgrees.push(bubbleId);
 
-  catEl.querySelector('img').src = CAT_IMAGES.HAPPY
-  catEl.classList.add('fade-out')
-  adopted.push({ id, text: threads[id][0].text })
-  updateAdoptList()
+  if (window.debateInfo) {
+    window.myMessages = window.myMessages || [];
+    window.saveMyPayload();
+  } else {
+    // Demo fallback
+    adopted.push({ id: bubbleId, text: msg.text, sender: msg.sender });
+    updateAdoptList();
+  }
+
+  catEl.querySelector('img').src = CAT_IMAGES.HAPPY;
   setTimeout(() => {
-    // Remove any floating overlay tied to this cat
-    if (catEl._bubbleOverlay) {
-      catEl._bubbleOverlay.remove()
-      catEl._bubbleOverlay = null
-    }
-    catEl.remove()
-  }, 700)
+    catEl.querySelector('img').src = CAT_IMAGES.NEUTRAL;
+  }, 1500);
+
+  renderCatBubbles(catEl);
 }
 
 function handleReject(catEl) {
@@ -320,23 +474,24 @@ function toggleRebutInput(bubbleEl, catEl) {
 
   const send = document.createElement('button')
   send.textContent = '보내기'
-  send.onclick = () => {
-    const val = textarea.value.trim()
-    if (!val) return
+  send.onclick = (e) => {
+    e.stopPropagation()
+    const nyanVal = toNyanSpeak(textarea.value.trim());
+    if (!nyanVal) return
     const id = catEl.dataset.id
-    threads[id].push({ from: 'user', text: val, time: Date.now() })
+
+    // Save to my global messages payload
+    if (window.debateInfo) {
+      let targetID = id === 'user' ? window.debateInfo.nickname : id;
+      window.myMessages.push({ target: targetID, text: nyanVal, time: Date.now() });
+      window.saveMyPayload();
+      threads[id].push({ from: 'user', text: nyanVal, time: Date.now() });
+    } else {
+      threads[id].push({ from: 'user', text: nyanVal, time: Date.now() })
+    }
 
     catEl._showHistory = true
     renderCatBubbles(catEl)
-
-    setTimeout(() => {
-      const responses = ['그렇지는 않다', '그건 오해다', '사실이 아니다', '내 생각은 다르다']
-      threads[id].push({ from: 'cat', text: toNyanSpeak(pick(responses)), time: Date.now() })
-      renderCatBubbles(catEl)
-      catEl.style.transition = 'all 0.5s ease-out'
-      catEl.style.transform = 'scale(1.2)'
-      setTimeout(() => catEl.style.transform = 'scale(1)', 1000)
-    }, 1000)
   }
 
   wrap.appendChild(textarea)
@@ -347,17 +502,23 @@ function toggleRebutInput(bubbleEl, catEl) {
 }
 
 sendBtn.addEventListener('click', () => {
-  const v = userInput.value.trim()
+  const v = toNyanSpeak(userInput.value.trim());
   if (!v) return
 
-  const container = document.getElementById('userArguments')
-  const el = document.createElement('div')
-  el.className = 'user-bubble'
-  el.textContent = v
-
-  // Prepend to keep latest at the top
-  container.prepend(el)
-  container.scrollTop = 0
+  const userCat = document.querySelector('.cat[data-id="user"]');
+  if (userCat) {
+    if (window.debateInfo) {
+      window.myMessages.push({ target: window.debateInfo.nickname, text: v, time: Date.now() });
+      window.saveMyPayload();
+      if (!threads['user']) threads['user'] = [];
+      threads['user'].push({ from: 'user', text: v, time: Date.now() });
+      renderCatBubbles(userCat);
+    } else {
+      if (!threads['user']) threads['user'] = [];
+      threads['user'].push({ from: 'user', text: v, time: Date.now() });
+      renderCatBubbles(userCat);
+    }
+  }
 
   userInput.value = ''
   document.getElementById('charCount').textContent = '0/30'
@@ -369,17 +530,45 @@ function updateAdoptList() {
   if (adopted.length === 0) { adoptList.textContent = '아직 없습니다.'; return }
   adoptList.innerHTML = ''
   adopted.forEach(item => {
+    const localTarget = item.sender === window.debateInfo?.nickname ? 'user' : item.sender;
+    const thread = threads[localTarget] || []
     const d = document.createElement('div')
     d.className = 'adopted-item'
-    d.style.cursor = 'pointer'
-    d.innerHTML = `
+
+    const header = document.createElement('div')
+    header.style.cursor = 'pointer'
+    header.style.display = 'flex'
+    header.style.alignItems = 'center'
+    header.innerHTML = `
       <img src="${CAT_IMAGES.HAPPY}">
-      <div class="adopted-text">${item.text}</div>
+      <div class="adopted-text" style="flex:1;">${item.text}</div>
+      <div class="toggle-icon" style="font-size:12px; color:var(--point-color); font-weight:bold; margin-left:5px;">▼</div>
     `
-    d.onclick = (e) => {
+
+    const historyBox = document.createElement('div')
+    historyBox.className = 'history-box hidden'
+    historyBox.style.marginTop = '10px'
+    historyBox.style.paddingTop = '10px'
+    historyBox.style.borderTop = '1px dashed #ccc'
+
+    // Filter to only show messages BEFORE the agree?
+    // Actually just show all thread messages.
+    historyBox.innerHTML = thread.map(m => `
+      <div class="bubble" style="margin-bottom:8px; align-self: ${m.from === 'user' ? 'flex-end' : 'flex-start'}; width:100%; text-align:left; transform:none; opacity:1;">
+        ${m.from === 'user' ? '<strong style="display:block; font-size:11px; color:#888; margin-bottom:2px;">나</strong>' : ''}
+        ${m.text}
+      </div>
+    `).join('')
+
+    header.onclick = (e) => {
       e.stopPropagation()
-      showHistory(item.id, e)
+      historyBox.classList.toggle('hidden')
+      const isOpen = !historyBox.classList.contains('hidden')
+      header.querySelector('.toggle-icon').textContent = isOpen ? '▲' : '▼'
     }
+
+    d.appendChild(header)
+    d.appendChild(historyBox)
     adoptList.appendChild(d)
   })
 }
@@ -395,7 +584,7 @@ function showHistory(id, event) {
   // Create bubbles
   list.innerHTML = thread.map(m => `
     <div class="bubble" style="opacity:1; transform:scale(1); pointer-events:none; align-self: ${m.from === 'user' ? 'flex-end' : 'flex-start'};">
-      <strong style="display:block; font-size:11px; color:#888; margin-bottom:4px; text-align:left;">${m.from === 'user' ? '나' : '냥이'}</strong>
+      ${m.from === 'user' ? '<strong style="display:block; font-size:11px; color:#888; margin-bottom:4px; text-align:left;">나</strong>' : ''}
       ${m.text}
     </div>
   `).join('')
@@ -443,6 +632,7 @@ document.getElementById('historyClose').onclick = () => {
 // Initial state for all cats
 document.querySelectorAll('.cat').forEach(cat => {
   const id = cat.dataset.id
+  if (id === 'user') return; // don't populate dummy for user
   if (!threads[id]) {
     threads[id] = [{ from: 'cat', text: toNyanSpeak(cat.dataset.text || ''), time: Date.now() }]
   }
@@ -468,5 +658,268 @@ document.addEventListener('click', (e) => {
   })
 })
 
+// --- Simulation Game Logic ---
+const simScript = [
+  { id: 'start', speaker: '', text: '저기...', onEnter: (ui) => ui.hideChar() },
+  { id: 's2', speaker: '할머니', text: '나 좀 도와줄 수 있는가...?', onEnter: (ui) => ui.showChar() },
+  { id: 's3', speaker: '할머니', text: '내가 잘 몰라가지고.. 입론을 할 수가 없네...' },
+  {
+    id: 'choice1', speaker: '할머니', text: '내가 잘 몰라가지고.. 입론을 할 수가 없네...',
+    choices: [
+      { text: '도와준다', next: 'help1' },
+      { text: '거절한다', next: 'reject1' }
+    ]
+  },
+
+  // 도와준다 path
+  { id: 'help1', speaker: '나', text: '네! 그럼요' },
+  { id: 'help2', speaker: '할머니', text: '여기.. (쪽지를 내민다)', next: 'open_note' },
+
+  // 거절한다 path
+  { id: 'reject1', speaker: '나', text: '...제가 왜요?' },
+  { id: 'reject2', speaker: '할머니', text: '손주가 부탁한 건데 한 번 읽어만 봐줄 수 있을까? (쪽지를 내민다)', next: 'open_note' },
+
+  // Note interaction
+  { id: 'open_note', speaker: '', text: '(쪽지가 펼쳐진다)', onEnter: (ui) => ui.showNote() },
+  {
+    id: 'choice2', speaker: '', text: '(쪽지 내용을 읽었다)',
+    choices: [
+      { text: '입론을 돕는다', next: 'help_construct' },
+      { text: '내 갈 길을 간다', next: 'go_my_way' }
+    ]
+  },
+
+  // 입론을 돕는다
+  { id: 'help_construct', speaker: '나', text: '제대로 적어서 제출해드려야겠다!' }, // don't hide note yet
+  { id: 'help_construct2', speaker: '할머니', text: '정말 고마워... 학생 없었으면 큰일날 뻔 했어..' },
+  { id: 'typing_phase', speaker: '', text: '(할머니의 쪽지를 올바른 맞춤법으로 고쳐 적어 제출하자.)', onEnter: (ui) => ui.showTypeUI() },
+
+  // 내 갈 길을 간다
+  { id: 'go_my_way', speaker: '나', text: '아 좀 가시라구요!', onEnter: (ui) => ui.hideNote() },
+  { id: 'go_my_way2', speaker: '할머니', text: '내가 잘 몰라서.. 미안혀... 조심히 가요..' },
+  { id: 'drop_note', speaker: '', text: '(쪽지가 바닥에 떨어진다)', onEnter: (ui) => ui.dropNote(), next: 'choice3' },
+
+  {
+    id: 'choice3', speaker: '', text: '(바닥에 떨어진 쪽지)',
+    choices: [
+      { text: '그냥 간다', next: 'just_go' },
+      { text: '쪽지를 줍는다', next: 'pickup_note' }
+    ]
+  },
+
+  // 그냥 간다
+  { id: 'just_go', speaker: '나', text: '(할머니를 뒤로하고 길을 나선다.)' },
+  { id: 'just_go_end', speaker: '', text: '...', onEnter: (ui) => { ui.endSim(); ui.showFinalButton(); } },
+
+  // 쪽지를 줍는다
+  { id: 'pickup_note', speaker: '나', text: '......' },
+  { id: 'pickup_note2', speaker: '', text: '(쪽지를 펼친다........)', onEnter: (ui) => ui.showNote(), next: 'typing_phase' }
+];
+
+let currentSimStep = 0;
+
+const simModal = document.getElementById('simModal');
+const simSpeaker = document.getElementById('simSpeaker');
+const simText = document.getElementById('simText');
+const simChoices = document.getElementById('simChoices');
+const simCharacter = document.getElementById('simCharacter');
+const simNote = document.getElementById('simNote');
+const simFinalBtn = document.getElementById('simFinalBtn');
+const simUi = document.querySelector('.sim-ui');
+const simNextIndicator = document.getElementById('simNextIndicator');
+
+const uiController = {
+  showChar: () => simCharacter.classList.remove('hidden'),
+  hideChar: () => simCharacter.classList.add('hidden'),
+  showNote: () => {
+    simNote.classList.remove('hidden');
+    simNote.classList.remove('dropped');
+    // slight delay to allow display flex/block to apply before animating opacity
+    setTimeout(() => simNote.classList.add('show'), 10);
+  },
+  hideNote: () => {
+    simNote.classList.remove('show');
+    setTimeout(() => simNote.classList.add('hidden'), 400);
+  },
+  dropNote: () => {
+    simNote.classList.remove('hidden');
+    simNote.classList.remove('show');
+    setTimeout(() => simNote.classList.add('dropped'), 10);
+  },
+  showFinalButton: () => {
+    simFinalBtn.classList.remove('hidden');
+    simNextIndicator.classList.add('hidden');
+    simUi.classList.add('hidden'); // hide dialogue when final button shows
+  },
+  showTypeUI: () => {
+    document.getElementById('simTypeUI').classList.remove('hidden');
+    simUi.classList.add('hidden'); // hide dialogue while typing
+  },
+  endSim: () => {
+    simModal.classList.add('hidden');
+  }
+};
+
+function runSimStep(index) {
+  const step = typeof index === 'string' ? simScript.find(s => s.id === index) : simScript[index];
+  if (!step) {
+    uiController.endSim();
+    return;
+  }
+  currentSimStep = simScript.indexOf(step);
+
+  simSpeaker.textContent = step.speaker;
+  simText.textContent = step.text;
+
+  if (step.onEnter) step.onEnter(uiController);
+
+  if (step.choices) {
+    simChoices.innerHTML = '';
+    simChoices.classList.remove('hidden');
+    simNextIndicator.classList.add('hidden');
+
+    step.choices.forEach(c => {
+      const btn = document.createElement('button');
+      btn.textContent = c.text;
+      btn.style.pointerEvents = 'auto'; // ensure it's clickable
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        simChoices.classList.add('hidden');
+        simNextIndicator.classList.remove('hidden');
+        runSimStep(c.next);
+      };
+      simChoices.appendChild(btn);
+    });
+  } else {
+    simChoices.classList.add('hidden');
+    simNextIndicator.classList.remove('hidden');
+  }
+}
+
+if (simUi) {
+  simUi.addEventListener('click', () => {
+    if (!simChoices.classList.contains('hidden')) return;
+    if (!simFinalBtn.classList.contains('hidden')) return;
+
+    const step = simScript[currentSimStep];
+    if (step && step.next) {
+      runSimStep(step.next);
+    } else if (currentSimStep < simScript.length - 1) {
+      runSimStep(currentSimStep + 1);
+    }
+  });
+}
+
+const simToggleBtn = document.getElementById('simToggleBtn');
+if (simToggleBtn) {
+  simToggleBtn.addEventListener('click', () => {
+    let bestMsgText = '아직 상대방의 의견이 엄슴미다.';
+    if (window.agreeCounts && Object.keys(window.agreeCounts).length > 0) {
+      const mySide = window.debateInfo ? window.debateInfo.side : 'pro';
+      const oppositeSide = mySide === 'pro' ? 'con' : 'pro';
+      const oppositeMessages = window.allMessages ? window.allMessages.filter(m => m.side === oppositeSide) : [];
+      let maxAgrees = 0;
+      let bestMsg = null;
+      oppositeMessages.forEach(m => {
+        const id = `${m.sender}_${m.time}`;
+        const count = window.agreeCounts[id] || 0;
+        if (count >= maxAgrees && count > 0) {
+          maxAgrees = count;
+          bestMsg = m;
+        }
+      });
+      if (bestMsg) bestMsgText = bestMsg.text;
+    }
+
+    function distort(t) {
+      t = t.replace(/\.{3}냥/g, '').replace(/냥/g, '');
+      return t
+        .replace(/습니다/g, '슴미다')
+        .replace(/입니다/g, '임미당')
+        .replace(/합니다/g, '함미다')
+        .replace(/요/g, '염')
+        .replace(/의 /g, '에 ')
+        .replace(/것/g, '거')
+        .replace(/는/g, '능')
+        .replace(/를/g, '룰')
+        .replace(/은/g, '응')
+        .replace(/다([.?!])/g, '당$1')
+        .replace(/다$/g, '당')
+        .replace(/없/g, '업')
+        .replace(/있/g, '잇')
+        .replace(/많/g, '만')
+        .replace(/않/g, '안')
+        .replace(/생각/g, '셍각');
+    }
+
+    const distortedText = distort(bestMsgText);
+    simNote.innerHTML = `<b>쪽지</b><br><br>${distortedText}`;
+
+    simModal.classList.remove('hidden');
+    simNote.classList.remove('show', 'dropped');
+    simNote.classList.add('hidden');
+    simCharacter.classList.add('hidden');
+    simFinalBtn.classList.add('hidden');
+    document.getElementById('simTypeUI').classList.add('hidden');
+    simUi.classList.remove('hidden');
+    document.getElementById('simTypeInput').value = '';
+    document.getElementById('simTypeCount').textContent = '0/100';
+    simNextIndicator.classList.remove('hidden');
+    runSimStep(0);
+  });
+}
+
+if (simFinalBtn) {
+  simFinalBtn.addEventListener('click', () => {
+    let finalArgument = '';
+    const simTypeInput = document.getElementById('simTypeInput');
+    if (simTypeInput && simTypeInput.value.trim() !== '') {
+      finalArgument = simTypeInput.value.trim();
+    } else {
+      // Default argument if user skipped typing
+      finalArgument = '쪽지에 적힌 내용을 바탕으로 입론합니다. 동물의 권리는 보장되어야 하므로 동물원에 반대합니다!';
+    }
+
+    const userCat = document.querySelector('.cat[data-id="user"]');
+    if (userCat) {
+      if (window.debateInfo) {
+        window.myMessages.push({ target: window.debateInfo.nickname, text: finalArgument, time: Date.now() });
+        window.saveMyPayload();
+        if (!threads['user']) threads['user'] = [];
+        threads['user'].push({ from: 'user', text: finalArgument, time: Date.now() });
+        renderCatBubbles(userCat);
+      } else {
+        if (!threads['user']) threads['user'] = [];
+        threads['user'].push({ from: 'user', text: finalArgument, time: Date.now() });
+        renderCatBubbles(userCat);
+      }
+    }
+
+    simModal.classList.add('hidden');
+    // Here we can trigger the next phase of the debate eventually.
+  });
+}
+
+// ------ Typing UI Events ------
+const simTypeUI = document.getElementById('simTypeUI');
+const simTypeInput = document.getElementById('simTypeInput');
+const simTypeCount = document.getElementById('simTypeCount');
+const simTypeSubmitBtn = document.getElementById('simTypeSubmitBtn');
+
+if (simTypeInput) {
+  simTypeInput.addEventListener('input', () => {
+    if (simTypeInput.value.length > 100) simTypeInput.value = simTypeInput.value.slice(0, 100);
+    simTypeCount.textContent = `${simTypeInput.value.length}/100`;
+  });
+}
+
+if (simTypeSubmitBtn) {
+  simTypeSubmitBtn.addEventListener('click', () => {
+    if (simTypeInput.value.trim() === '') return;
+    simTypeUI.classList.add('hidden');
+    uiController.hideNote();
+    uiController.showFinalButton();
+  });
+}
 
 
