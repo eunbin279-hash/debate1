@@ -17,9 +17,6 @@
 <body>
   <div class="main-container">
     <div class="yard" id="yard">
-      <div id="hurtOverlay" class="hurt-overlay hidden">
-        <div class="hurt-msg">고양이가 상처를 받았습니다...</div>
-      </div>
       <header class="top">
         <h1>[샤워는 아침이 아니라 저녁에 해야 된다]</h1>
       </header>
@@ -83,40 +80,28 @@
       <!-- Lonely visual effect overlay -->
       <div class="sim-lonely-fx"></div>
 
-      <!-- 타이핑 받아적기 UI -->
-      <div id="simTypeUI" class="sim-type-ui hidden">
-        <div class="sim-type-header">맞춤법 고쳐서 받아적기</div>
-        <textarea id="simTypeInput" placeholder="할머니의 쪽지 내용을 올바른 맞춤법으로 다시 적어주세요."></textarea>
-        <div class="sim-type-actions">
-          <span id="simTypeCount" class="type-count">0/100</span>
-          <div>
-            <button id="simTypeSubmitBtn" class="btn btn-primary">작성 완료</button>
-          </div>
+      <script src="https://debate-md2-2603.web.app/debate-core.js" data-architect-id="ian"></script>
+      <script src="app.js"></script>
+
+      <!-- Minimal waiting modal -->
+      <div id="waitingModal" class="waiting-modal hidden" aria-hidden="true">
+        <div class="waiting-card">
+          <div class="spinner" aria-hidden="true"></div>
+          <div class="waiting-text">접속 대기 중</div>
+          <div class="waiting-count" id="waitingCount">0명</div>
         </div>
       </div>
 
-      <button id="simFinalBtn" class="sim-final-btn hidden">입론하기</button>
-    </div>
+    </div> <!-- End simModal -->
+  </div> <!-- End main-container -->
 
-    <script src="https://debate-md2-2603.web.app/debate-core.js" data-architect-id="ian"></script>
-    <script src="app.js"></script>
-
-    <!-- SVG Filters for Sketch/Pencil Effect -->
-    <svg style="display: none;">
-      <filter id="pencil-sketch" x="-20%" y="-20%" width="140%" height="140%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
-        <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" xChannelSelector="R" yChannelSelector="G" />
-      </filter>
-    </svg>
-
-    <!-- Minimal waiting modal -->
-    <div id="waitingModal" class="waiting-modal hidden" aria-hidden="true">
-      <div class="waiting-card">
-        <div class="spinner" aria-hidden="true"></div>
-        <div class="waiting-text">접속 대기 중</div>
-        <div class="waiting-count" id="waitingCount">0명</div>
-      </div>
-    </div>
+  <!-- SVG Filters for Sketch/Pencil Effect (Moved outside for cleaner DOM) -->
+  <svg style="display: none;">
+    <filter id="pencil-sketch" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
 </body>
 
 </html>

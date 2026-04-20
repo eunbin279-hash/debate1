@@ -1,79 +1,8 @@
 const yard = document.getElementById('yard')
+
 const catsWrap = document.getElementById('cats')
 
-// Character click input logic - Updated to allow talking to anyone
-catsWrap.addEventListener('click', e => {
-  const cat = e.target.closest('.cat');
-  if (!cat) return;
-
-  const targetId = cat.dataset.id; // 'user' or the other user's nickname
-  const realTargetName = targetId === 'user' ? (window.debateInfo ? window.debateInfo.nickname : '나') : targetId;
-
-  // Prevent multiple inputs
-  if (cat.querySelector('.inline-input-wrap')) return;
-
-  // Hide bubbles temporarily
-  const bubbleStack = cat.querySelector('.bubble-stack');
-  if (bubbleStack) bubbleStack.style.display = 'none';
-
-  const inputWrap = document.createElement('div');
-  inputWrap.className = 'inline-input-wrap';
-  inputWrap.style.position = 'absolute';
-  inputWrap.style.bottom = '110%';
-  inputWrap.style.left = '50%';
-  inputWrap.style.transform = 'translateX(-50%)';
-  inputWrap.style.zIndex = '500';
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.placeholder = targetId === 'user' ? '모두에게 외치기...' : `${targetId}에게 한마디...`;
-  input.className = 'cat-inline-input';
-  input.maxLength = 30;
-
-  inputWrap.appendChild(input);
-  cat.appendChild(inputWrap);
-  input.focus();
-
-  const removeInput = () => {
-    inputWrap.remove();
-    if (bubbleStack) bubbleStack.style.display = 'flex';
-  };
-
-  const handleSubmit = () => {
-    const val = input.value.trim();
-    if (val && window.debateInfo) {
-      // Replaced nyanVal with direct val
-      window.myMessages.push({
-        target: realTargetName,
-        text: val,
-        time: Date.now()
-      });
-      window.saveMyPayload();
-
-      // Update local thread immediately for responsiveness
-      const localKey = targetId;
-      if (!threads[localKey]) threads[localKey] = [];
-      threads[localKey].push({ from: 'user', text: val, time: Date.now(), sender: window.debateInfo.nickname });
-      renderCatBubbles(cat);
-    }
-    removeInput();
-  };
-
-  input.addEventListener('keydown', e => {
-    if (e.isComposing) return;
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSubmit();
-    } else if (e.key === 'Escape') {
-      removeInput();
-    }
-  });
-
-  input.addEventListener('blur', (e) => {
-    // Small delay to allow enter key to register
-    setTimeout(removeInput, 100);
-  });
-});
+// Character click input logic is now moved inside onReady for correct scoping.
 
 let adopted = []
 const threads = {}
@@ -94,9 +23,11 @@ if (window.DebateCore) {
     }
     window.debateInfo = info;
 
-    // Set dynamic title from info
-    const titleEl = document.querySelector('.top h1');
-    if (titleEl && info.title) titleEl.textContent = `[ ${info.title} ]`;
+    // Control visibility of manual simulation tab
+    const simStartTab = document.getElementById('simStartTab');
+    if (simStartTab && info.nickname !== 'ian') {
+      simStartTab.style.display = 'none';
+    }
 
     window.myMessages = [];
     window.myAgrees = [];
@@ -133,6 +64,75 @@ if (window.DebateCore) {
 
     window.saveMyPayload();
 
+    window.hasTriggeredSimulation = false;
+
+    // Character click input logic - Now inside onReady
+    catsWrap.addEventListener('click', e => {
+      const cat = e.target.closest('.cat');
+      if (!cat) return;
+
+      const targetId = cat.dataset.id;
+      if (targetId !== 'user') return;
+
+      if (cat.querySelector('.inline-input-wrap')) return;
+
+      const bubbleStack = cat.querySelector('.bubble-stack');
+      if (bubbleStack) bubbleStack.style.display = 'none';
+
+      const inputWrap = document.createElement('div');
+      inputWrap.className = 'inline-input-wrap';
+      inputWrap.style.position = 'absolute';
+      inputWrap.style.bottom = '110%';
+      inputWrap.style.left = '50%';
+      inputWrap.style.transform = 'translateX(-50%)';
+      inputWrap.style.zIndex = '500';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '모두에게 외치기...';
+      input.className = 'cat-inline-input';
+      input.maxLength = 30;
+
+      inputWrap.appendChild(input);
+      cat.appendChild(inputWrap);
+      input.focus();
+
+      const removeInput = () => {
+        inputWrap.remove();
+        if (bubbleStack) bubbleStack.style.display = 'flex';
+      };
+
+      const handleSubmit = () => {
+        const val = input.value.trim();
+        if (val && info) {
+          window.myMessages.push({
+            target: 'all',
+            text: val,
+            time: Date.now()
+          });
+          window.saveMyPayload();
+
+          if (!threads['user']) threads['user'] = [];
+          threads['user'].push({ from: 'user', text: val, time: Date.now(), sender: info.nickname });
+          renderCatBubbles(cat);
+        }
+        removeInput();
+      };
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleSubmit();
+        } else if (e.key === 'Escape') {
+          removeInput();
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(removeInput, 100);
+      });
+    });
+
     window.usedSlots = new Set();
     const slots = [
       { left: 10, top: 15 }, { left: 25, top: 25 }, { left: 75, top: 15 }, { left: 85, top: 35 },
@@ -141,74 +141,83 @@ if (window.DebateCore) {
       { left: 35, top: 45 }, { left: 60, top: 20 }, { left: 10, top: 55 }, { left: 85, top: 50 },
     ];
 
-    // Listen for payloads
-    info.onPayloadsChange(payloads => {
+    // Listen for payloads (Real-time updates)
+    info.onPayloadsChange(processAllPayloads);
+
+    // Initial Load: Fetch existing data immediately (Mandatory for Demo dummy data & Existing posts)
+    info.loadPayloads().then(processAllPayloads).catch(err => console.error("Initial load error:", err));
+
+    function processAllPayloads(payloads) {
+      if (!payloads) return;
       const catsWrap = document.getElementById('cats');
 
       // Clear all threads to rebuild
       Object.keys(threads).forEach(k => { threads[k] = [] });
 
-      // Collect all messages and agrees
+      // Collect data across all users
       let allMessages = [];
-      let agreeCounts = {};
       let allBoardLikes = [];
       let allBoardComments = [];
-      window.allBoardPosts = [];
+      let tempBoardPosts = [];
+
       Object.keys(payloads).forEach(nick => {
         const data = payloads[nick];
+        if (!data) return;
 
+        // Sync local collections
         if (nick === info.nickname) {
+          if (data.boardPosts && data.boardPosts.length >= window.myBoardPosts.length) {
+             window.myBoardPosts = data.boardPosts;
+          }
           window.myMessages = data.messages || [];
-          window.myAgrees = data.agrees || [];
-          window.myBoardPosts = data.boardPosts || [];
           window.myBoardLikes = data.boardLikes || [];
           window.myBoardComments = data.boardComments || [];
         }
 
-        if (data && data.messages && Array.isArray(data.messages)) {
+        // Aggregate All Messages
+        if (data.messages && Array.isArray(data.messages)) {
           data.messages.forEach(m => allMessages.push({ ...m, sender: nick, side: data.side }));
         }
-        if (data && data.agrees && Array.isArray(data.agrees)) {
-          data.agrees.forEach(id => {
-            agreeCounts[id] = (agreeCounts[id] || 0) + 1;
+        
+        // Aggregate All Board Posts
+        if (data.boardPosts && Array.isArray(data.boardPosts)) {
+          data.boardPosts.forEach(p => {
+             const stableId = p.id || `${p.author}_${p.time}`;
+             tempBoardPosts.push({ ...p, id: stableId, side: data.side });
           });
         }
-        if (data && data.boardPosts && Array.isArray(data.boardPosts)) {
-          data.boardPosts.forEach(p => window.allBoardPosts.push({ ...p, id: `${p.author}_${p.time}`, side: data.side }));
-        }
-        if (data && data.boardLikes && Array.isArray(data.boardLikes)) {
+
+        if (data.boardLikes && Array.isArray(data.boardLikes)) {
           allBoardLikes.push(...data.boardLikes);
         }
-        if (data && data.boardComments && Array.isArray(data.boardComments)) {
+        if (data.boardComments && Array.isArray(data.boardComments)) {
           allBoardComments.push(...data.boardComments);
         }
       });
-      window.agreeCounts = agreeCounts;
+
+      window.allBoardPosts = tempBoardPosts;
       window.allMessages = allMessages;
 
-      // Process likes and comments for the bulletin board
-      const boardLikeCounts = allBoardLikes.reduce((acc, postId) => {
+      // Map Likes & Comments
+      window.boardLikeCounts = allBoardLikes.reduce((acc, postId) => {
         acc[postId] = (acc[postId] || 0) + 1;
         return acc;
       }, {});
-      window.boardLikeCounts = boardLikeCounts;
 
-      const boardCommentsByPost = allBoardComments.reduce((acc, comment) => {
-        if (!acc[comment.postId]) {
-          acc[comment.postId] = [];
-        }
+      window.boardCommentsByPost = allBoardComments.reduce((acc, comment) => {
+        if (!acc[comment.postId]) acc[comment.postId] = [];
         acc[comment.postId].push(comment);
         return acc;
       }, {});
-      window.boardCommentsByPost = boardCommentsByPost;
 
-      // Find most liked OPPONENT post for simulation
+      // Simulation Context: Find most liked opponent post
       let mostLikedOpponentPostId = null;
       let maxOpLikes = -1;
       const mySide = info.side || 'unassigned';
+      
       window.allBoardPosts.forEach(p => {
         if (p.side !== mySide) {
-          const likes = boardLikeCounts[p.id] || 0;
+          const likes = window.boardLikeCounts[p.id] || 0;
           if (likes > maxOpLikes) {
             maxOpLikes = likes;
             mostLikedOpponentPostId = p.id;
@@ -218,39 +227,23 @@ if (window.DebateCore) {
       window.mostLikedOpponentPostId = mostLikedOpponentPostId;
 
       allMessages.sort((a, b) => a.time - b.time);
-      window.allBoardPosts.sort((a, b) => b.time - a.time); // Newest first
+      window.allBoardPosts.sort((a, b) => b.time - a.time); 
 
+      // Re-render Bulletin Board
       renderBulletinBoard(window.allBoardPosts);
 
-      // Reconstruct adopted array
-      adopted = [];
-      if (window.myAgrees) {
-        window.myAgrees.forEach(bubbleId => {
-          const msg = allMessages.find(m => `${m.sender}_${m.time}` === bubbleId);
-          if (msg) adopted.push({ id: bubbleId, text: msg.text, sender: msg.sender });
-        });
-      }
+      // Re-render Cat Bubbles
       allMessages.forEach(m => {
         let localTarget = m.target === info.nickname ? 'user' : m.target;
         let fromStr = m.sender === info.nickname ? 'user' : 'cat';
         if (!threads[localTarget]) threads[localTarget] = [];
-        threads[localTarget].push({
-          from: fromStr,
-          text: m.text,
-          time: m.time,
-          sender: m.sender
-        });
+        threads[localTarget].push({ from: fromStr, text: m.text, time: m.time, sender: m.sender });
       });
 
-      updateAdoptList();
-
-      // Render all cats (and create if missing)
-      const MAX_CATS = 6;
-      // Identify all other connected users from payloads, not just those who spoke
+      // Render others' cats
       const currentOtherUsers = Object.keys(payloads).filter(nick => nick !== info.nickname);
-      const usersToRender = currentOtherUsers.slice(-MAX_CATS);
+      const usersToRender = currentOtherUsers.slice(-6);
 
-      // Clean up old cats beyond max limit
       Array.from(document.querySelectorAll('.cat')).forEach(catEl => {
         const id = catEl.dataset.id;
         if (id !== 'user' && !usersToRender.includes(id)) {
@@ -260,34 +253,25 @@ if (window.DebateCore) {
       });
 
       usersToRender.forEach(nick => {
+        if (!nick) return;
         let catEl = document.querySelector(`.cat[data-id="${nick}"]`);
         if (!catEl) {
           catEl = document.createElement('div');
           catEl.className = 'cat';
           catEl.dataset.id = nick;
-
           let slot = slots.find(s => !window.usedSlots.has(s.left));
           if (!slot) slot = { left: 10 + Math.random() * 80, top: 10 + Math.random() * 60 };
           window.usedSlots.add(slot.left);
-
           catEl.style.left = `${slot.left}%`;
           catEl.style.top = `${slot.top}%`;
-          catEl.innerHTML = `
-            <div class="bubble-stack"></div>
-            <div class="nametag" style="position:absolute;bottom:-30px;left:50%;transform:translateX(-50%); white-space:nowrap;">${nick}</div>
-            <img src="img/stickman_neutral.svg" alt="cat" class="cat-img">
-          `;
+          catEl.innerHTML = `<div class="bubble-stack"></div><div class="nametag" style="position:absolute;bottom:-30px;left:50%;transform:translateX(-50%); white-space:nowrap;">${nick}</div><img src="img/stickman_neutral.svg" alt="cat" class="cat-img">`;
           catsWrap.appendChild(catEl);
         }
         renderCatBubbles(catEl);
       });
 
-      // Also render user cat
-      const userCatEl = document.querySelector('.cat[data-id="user"]');
       if (userCatEl) renderCatBubbles(userCatEl);
-    });
-  });
-}
+    }
 
 const CAT_IMAGES = {
   NEUTRAL: 'img/stickman_neutral.svg',
@@ -360,7 +344,12 @@ function setupBulletinBoardUI(info) {
     </div>
     <div id="board-posts" class="adopt-list"></div>
   `;
-  document.body.appendChild(boardContainer);
+  const mainContainer = document.querySelector('.main-container');
+  if (mainContainer) {
+    mainContainer.appendChild(boardContainer);
+  } else {
+    document.body.appendChild(boardContainer);
+  }
 
   // 3. Create post submission modal
   const postModal = document.createElement('div');
@@ -370,7 +359,8 @@ function setupBulletinBoardUI(info) {
       <div class="input-overlay"></div>
       <div class="input-card">
           <h3 class="modal-title">게시판에 글쓰기</h3>
-          <textarea id="post-textarea" placeholder="내용을 입력하세요..." maxlength="100"></textarea>
+          <textarea id="post-textarea" placeholder="내용을 입력하세요..." maxlength="40"></textarea>
+          <div id="post-char-count" style="text-align: right; font-size: 12px; color: var(--text-muted); margin-top: 4px;">0 / 40</div>
           <div class="input-actions">
               <button id="cancel-post-btn" class="btn btn-secondary">취소</button>
               <button id="submit-post-btn" class="btn btn-primary">업로드</button>
@@ -378,6 +368,15 @@ function setupBulletinBoardUI(info) {
       </div>
   `;
   document.body.appendChild(postModal);
+
+  // Add counter listener once
+  const postTextarea = document.getElementById('post-textarea');
+  const postCharCount = document.getElementById('post-char-count');
+  if (postTextarea && postCharCount) {
+    postTextarea.addEventListener('input', () => {
+      postCharCount.textContent = `${postTextarea.value.length} / 40`;
+    });
+  }
 
   // Create wait modal (Clean countdown style)
   const waitModal = document.createElement('div');
@@ -421,43 +420,58 @@ function setupBulletinBoardUI(info) {
 
   // 4. Add event listeners
   computerIcon.addEventListener('click', () => {
-    const waitModal = document.getElementById('wait-modal');
-    const progressBar = document.getElementById('wait-progress-bar');
-    const waitStatusText = document.getElementById('wait-status-text');
-    const countNum = document.getElementById('wait-count-num');
+    const postCount = window.allBoardPosts ? window.allBoardPosts.length : 0;
+    const isSimTrigger = (postCount >= 6 && window.mostLikedOpponentPostId && !window.hasTriggeredSimulation);
 
-    let currentWait = 4;
-    countNum.textContent = currentWait;
+    const openBoardModal = () => {
+      const postModal = document.getElementById('post-modal');
+      if (postModal) {
+        postModal.classList.remove('hidden');
+        const cancelBtn = document.getElementById('cancel-post-btn');
+        if (cancelBtn) cancelBtn.style.display = 'block'; 
 
-    progressBar.style.transition = 'none';
-    progressBar.style.width = '0%';
-    waitModal.classList.remove('hidden');
-
-    void progressBar.offsetWidth;
-
-    progressBar.style.transition = 'width 3.5s linear';
-    progressBar.style.width = '100%';
-
-    // Countdown logic
-    const interval = setInterval(() => {
-      currentWait--;
-      if (currentWait >= 0) {
-        countNum.textContent = currentWait;
+        const textarea = document.getElementById('post-textarea');
+        const charCount = document.getElementById('post-char-count');
+        if (textarea && charCount) {
+          textarea.value = "";
+          charCount.textContent = "0 / 40";
+        }
+        if (textarea) textarea.focus();
       }
-      if (currentWait === 0) {
-        clearInterval(interval);
-        setTimeout(() => {
-          waitModal.classList.add('hidden');
-          const postModal = document.getElementById('post-modal');
-          if (postModal) {
-            postModal.classList.remove('hidden');
-            const cancelBtn = document.getElementById('cancel-post-btn');
-            if (cancelBtn) cancelBtn.style.display = 'block'; // Ensure cancel is visible for normal board use
-            document.getElementById('post-textarea').focus();
-          }
-        }, 500);
-      }
-    }, 800);
+    };
+
+    if (isSimTrigger) {
+      // 1. Show Waiting Screen only before simulation
+      const waitModal = document.getElementById('wait-modal');
+      const progressBar = document.getElementById('wait-progress-bar');
+      const countNum = document.getElementById('wait-count-num');
+
+      let currentWait = 4;
+      countNum.textContent = currentWait;
+      progressBar.style.transition = 'none';
+      progressBar.style.width = '0%';
+      waitModal.classList.remove('hidden');
+
+      void progressBar.offsetWidth;
+      progressBar.style.transition = 'width 3.5s linear';
+      progressBar.style.width = '100%';
+
+      const interval = setInterval(() => {
+        currentWait--;
+        if (currentWait >= 0) countNum.textContent = currentWait;
+        if (currentWait === 0) {
+          clearInterval(interval);
+          setTimeout(() => {
+            waitModal.classList.add('hidden');
+            window.hasTriggeredSimulation = true;
+            startSimulation();
+          }, 500);
+        }
+      }, 1000);
+    } else {
+      // 2. Normal flow: Open board post modal immediately
+      openBoardModal();
+    }
   });
 
   document.getElementById('cancel-post-btn').addEventListener('click', () => postModal.classList.add('hidden'));
@@ -732,7 +746,16 @@ function renderSimStep() {
     simNote.classList.remove('hidden');
     // Find most liked opponent post
     const opPost = window.allBoardPosts.find(p => p.id === window.mostLikedOpponentPostId);
-    const defaultText = `동물원은 동물의 권리를 침해하는 공간입니다. 자연에서 살 수 있도록 보장해야 합니다.`;
+    let defaultText = `동물원은 동물의 권리를 침해하는 공간입니다. 자연에서 살 수 있도록 보장해야 합니다.`;
+
+    if (window.debateInfo) {
+      if (window.debateInfo.side === 'pro') {
+        defaultText = "샤워는 저녁이 아니라 아침에 해야 된다.";
+      } else if (window.debateInfo.side === 'con') {
+        defaultText = "샤워는 아침이 아니라 저녁에 해야 된다.";
+      }
+    }
+
     window.currentNoteText = opPost ? opPost.text : defaultText;
     simNote.innerHTML = `<b><레포트></b><br><br>${escapeHTML(window.currentNoteText)}`;
   } else if (!step.choices && !simulationData[currentSimStep - 1]?.showNote) {
@@ -865,6 +888,16 @@ function enableManualTypingPhase() {
 
   if (card) card.classList.remove('dimmed');
 
+  const charCount = document.getElementById('post-char-count');
+  if (textarea && charCount) {
+    textarea.value = "";
+    textarea.maxLength = 40;
+    charCount.textContent = "0 / 40";
+    textarea.addEventListener('input', () => {
+      charCount.textContent = `${textarea.value.length} / 40`;
+    });
+  }
+
   if (textarea) {
     textarea.disabled = false;
     textarea.focus();
@@ -950,3 +983,6 @@ document.getElementById('simModal').onclick = (e) => {
 };
 
 document.getElementById('simStartTab').onclick = startSimulation;
+
+}); // End of window.DebateCore.onReady
+}
