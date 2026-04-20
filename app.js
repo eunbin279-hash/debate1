@@ -20,6 +20,23 @@ if (window.DebateCore) {
       return;
     }
     window.debateInfo = info;
+    // Show simulation button only for user 'ian'
+    try {
+      const simBtn = document.getElementById('simFinalBtn')
+      if (simBtn) {
+        if (info.nickname === 'ian') simBtn.classList.remove('hidden')
+        else simBtn.classList.add('hidden')
+      }
+      // Also hide the bottom toggle button unless user is 'ian'
+      const simToggle = document.getElementById('simToggleBtn')
+      if (simToggle) {
+        if (info.nickname === 'ian') {
+          simToggle.style.display = ''
+        } else {
+          simToggle.style.display = 'none'
+        }
+      }
+    } catch (e) { /* ignore */ }
     window.myMessages = [];
     window.myAgrees = [];
     window.saveMyPayload = () => {
@@ -96,6 +113,11 @@ if (window.DebateCore) {
 
       updateAdoptList();
 
+      // If an auto-sim trigger checker is defined, call it now (safe to call repeatedly)
+      if (typeof window.checkAutoSimTrigger === 'function') {
+        try { window.checkAutoSimTrigger(); } catch (err) { console.error('auto-sim trigger error', err); }
+      }
+
       // Render all cats (and create if missing)
       const MAX_CATS = 6;
       const usersToRender = Object.keys(threads).filter(t => t !== 'user').slice(-MAX_CATS);
@@ -137,6 +159,140 @@ if (window.DebateCore) {
     });
   });
 }
+
+// --- Auto-simulation helpers for non-ian users ---
+// Ensure each debate triggers auto-sim only once per debate key
+window._autoSimRunSet = window._autoSimRunSet || new Set();
+
+function getDebateKey() {
+  if (!window.debateInfo) return 'debate-unknown';
+  const t = window.debateInfo.title || `${window.debateInfo.agendaSetter || ''}-${window.debateInfo.architect || ''}`;
+  return (t && t.length > 0) ? `debate:${t}` : 'debate-unknown';
+}
+
+window.startSimulationAuto = window.startSimulationAuto || function () {
+  // Reuse existing sim toggle behavior but keep it callable
+  const evt = new Event('sim-auto');
+  if (typeof window.startSimulationAuto === 'function' && typeof runSimStep === 'function') {
+    // If sim UI is already wired via simToggleBtn, just call that flow
+    // Build the note content similarly to manual flow
+    let bestMsgText = '아직 상대방의 의견이 엄슴미다.';
+    if (window.agreeCounts && Object.keys(window.agreeCounts).length > 0) {
+      const mySide = window.debateInfo ? window.debateInfo.side : 'pro';
+      const oppositeSide = mySide === 'pro' ? 'con' : 'pro';
+      const oppositeMessages = window.allMessages ? window.allMessages.filter(m => m.side === oppositeSide) : [];
+      let maxAgrees = 0;
+      let bestMsg = null;
+      oppositeMessages.forEach(m => {
+        const id = `${m.sender}_${m.time}`;
+        const count = window.agreeCounts[id] || 0;
+        if (count >= maxAgrees && count > 0) {
+          maxAgrees = count;
+          bestMsg = m;
+        }
+      });
+      if (bestMsg) bestMsgText = bestMsg.text;
+    }
+
+    function distort(t) {
+      t = t.replace(/\.\.\.냥/g, '').replace(/냥/g, '');
+      return t
+        .replace(/습니다/g, '슴미다')
+        .replace(/입니다/g, '임미당')
+        .replace(/합니다/g, '함미다')
+        .replace(/요/g, '염')
+        .replace(/의 /g, '에 ')
+        .replace(/것/g, '거')
+        .replace(/는/g, '능')
+        .replace(/를/g, '룰')
+        .replace(/은/g, '응')
+        .replace(/다([.?!])/g, '당$1')
+        .replace(/다$/g, '당')
+        .replace(/없/g, '업')
+        .replace(/있/g, '잇')
+        .replace(/많/g, '만')
+        .replace(/않/g, '안')
+        .replace(/생각/g, '셍각');
+    }
+
+    const distortedText = distort(bestMsgText);
+
+    if (simNote) simNote.innerHTML = `<b>쪽지</b><br><br>${distortedText}`;
+    if (simModal) simModal.classList.remove('hidden');
+    if (simNote) { simNote.classList.remove('show', 'dropped'); simNote.classList.add('hidden'); }
+    if (simCharacter) simCharacter.classList.add('hidden');
+    if (simFinalBtn) simFinalBtn.classList.add('hidden');
+    const tUI = document.getElementById('simTypeUI'); if (tUI) tUI.classList.add('hidden');
+    if (simUi) simUi.classList.remove('hidden');
+    const tInput = document.getElementById('simTypeInput'); if (tInput) tInput.value = '';
+    const tCount = document.getElementById('simTypeCount'); if (tCount) tCount.textContent = '0/100';
+    if (simNextIndicator) simNextIndicator.classList.remove('hidden');
+    runSimStep(0);
+  }
+};
+
+window.checkAutoSimTrigger = window.checkAutoSimTrigger || function () {
+  try {
+    if (!window.debateInfo) return;
+    if (window.debateInfo.nickname === 'ian') return; // only for non-ian users
+
+    const key = getDebateKey();
+    // per-session guard
+    if (window._autoSimRunSet.has(key)) return; // already triggered in this session
+
+    // per-user persisted guard (localStorage) so the same person on the same device won't see it again
+    const nick = window.debateInfo.nickname || 'anon';
+    const seenKey = `seenSim:${key}:${nick}`;
+    try {
+      if (localStorage.getItem(seenKey)) return; // already seen by this user on this device
+    } catch (err) {
+      // localStorage may be unavailable in some environments; ignore and proceed with session-only guard
+    }
+
+    const opinionsCount = (window.allMessages && Array.isArray(window.allMessages)) ? window.allMessages.length : 0;
+    if (opinionsCount < 5) return; // need at least 5 opinions
+
+    // Find the highest-agreed message and require it has at least 1 agree
+    let maxAgrees = 0;
+    let bestMsg = null;
+    if (window.allMessages && window.agreeCounts) {
+      window.allMessages.forEach(m => {
+        const id = `${m.sender}_${m.time}`;
+        const c = window.agreeCounts[id] || 0;
+        if (c > maxAgrees) {
+          maxAgrees = c;
+          bestMsg = m;
+        }
+      });
+    }
+
+    if (!bestMsg || maxAgrees <= 0) return; // no agreed opinion yet
+
+    // Mark as triggered (session) and persist seen flag (per-device/user)
+    window._autoSimRunSet.add(key);
+    try {
+      localStorage.setItem(seenKey, String(Date.now()));
+    } catch (err) {
+      // ignore storage errors
+    }
+    if (typeof window.startSimulationAuto === 'function') window.startSimulationAuto();
+  } catch (err) {
+    console.error('checkAutoSimTrigger error', err);
+  }
+};
+
+// Helper to clear the local seen flag (for testing)
+window.clearSeenSimForCurrent = function () {
+  try {
+    if (!window.debateInfo) return;
+    const key = getDebateKey();
+    const nick = window.debateInfo.nickname || 'anon';
+    localStorage.removeItem(`seenSim:${key}:${nick}`);
+    // Also remove from session set so it can trigger again in this session
+    window._autoSimRunSet.delete(key);
+  } catch (e) { /* ignore */ }
+}
+
 
 const CAT_IMAGES = {
   NEUTRAL: 'img/cat_neutral.png',
@@ -576,57 +732,6 @@ function updateAdoptList() {
 function showHistory(id, event) {
   const modal = document.getElementById('historyModal')
   const list = document.getElementById('historyList')
-  const card = modal.querySelector('.history-card')
-  const thread = threads[id] || []
-
-  if (thread.length === 0) return
-
-  // Create bubbles
-  list.innerHTML = thread.map(m => `
-    <div class="bubble" style="opacity:1; transform:scale(1); pointer-events:none; align-self: ${m.from === 'user' ? 'flex-end' : 'flex-start'};">
-      ${m.from === 'user' ? '<strong style="display:block; font-size:11px; color:#888; margin-bottom:4px; text-align:left;">나</strong>' : ''}
-      ${m.text}
-    </div>
-  `).join('')
-
-  modal.classList.remove('hidden')
-
-  // Position the card near the clicked item but clamp inside the viewport
-  const rect = event.currentTarget.getBoundingClientRect()
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-  card.style.position = 'fixed'
-  card.style.bottom = 'auto'
-
-  // Mobile / narrow screens: make the card full-width-ish and place below the item
-  if (vw <= 700) {
-    card.style.left = '10px'
-    card.style.right = '10px'
-    card.style.width = 'auto'
-    const top = Math.min(Math.max(10, rect.top - 20), vh - 120)
-    card.style.top = top + 'px'
-    return
-  }
-
-  // Desktop: try to place to the left of the clicked element; otherwise center above it
-  // Ensure card has a measured width
-  const cardWidth = card.offsetWidth || Math.min(360, vw - 40)
-  let left = rect.left - cardWidth - 12
-  if (left < 12) {
-    // place centered above the item
-    left = rect.left + rect.width / 2 - cardWidth / 2
-  }
-  left = Math.min(Math.max(12, left), vw - cardWidth - 12)
-  card.style.left = left + 'px'
-  card.style.right = 'auto'
-
-  // Clamp top so card stays visible
-  const top = Math.min(Math.max(10, rect.top - 40), vh - (card.offsetHeight || 200) - 12)
-  card.style.top = (isNaN(top) ? 20 : top) + 'px'
-}
-
-document.getElementById('historyClose').onclick = () => {
-  document.getElementById('historyModal').classList.add('hidden')
 }
 
 // Initial state for all cats
@@ -638,6 +743,7 @@ document.querySelectorAll('.cat').forEach(cat => {
   }
   renderCatBubbles(cat)
 })
+
 
 userInput.addEventListener('keydown', e => {
   if (e.isComposing) return // Fixes Korean IME duplicate event
@@ -660,11 +766,11 @@ document.addEventListener('click', (e) => {
 
 // --- Simulation Game Logic ---
 const simScript = [
-  { id: 'start', speaker: '', text: '저기...', onEnter: (ui) => ui.hideChar() },
-  { id: 's2', speaker: '할머니', text: '나 좀 도와줄 수 있는가...?', onEnter: (ui) => ui.showChar() },
-  { id: 's3', speaker: '할머니', text: '내가 잘 몰라가지고.. 입론을 할 수가 없네...' },
+  { id: 'start', speaker: '', text: '냐...(저기...)', onEnter: (ui) => ui.hideChar() },
+  { id: 's2', speaker: '할머니', text: '냐, 냐냐...?(나 좀 도와줄 수 있는가...?)', onEnter: (ui) => ui.showChar() },
+  { id: 's3', speaker: '할머니', text: '냐냐냥... 냐냐...(내가 글을 잘 몰라가지고.. 손주를 도와줄 수가 없네...)' },
   {
-    id: 'choice1', speaker: '할머니', text: '내가 잘 몰라가지고.. 입론을 할 수가 없네...',
+    id: 'choice1', speaker: '할머니', text: '냐냐냥... 냐냐...(내가 글을 잘 몰라가지고.. 손주를 도와줄 수가 없네...)',
     choices: [
       { text: '도와준다', next: 'help1' },
       { text: '거절한다', next: 'reject1' }
@@ -672,31 +778,31 @@ const simScript = [
   },
 
   // 도와준다 path
-  { id: 'help1', speaker: '나', text: '네! 그럼요' },
-  { id: 'help2', speaker: '할머니', text: '여기.. (쪽지를 내민다)', next: 'open_note' },
+  { id: 'help1', speaker: '나', text: '네!' },
+  { id: 'help2', speaker: '할머니', text: '냐...(저기, 글이 많이 올라가면 좋다는데.. 할미가 글도 틀리고 그러면 애가 부끄럽잖아...)(쪽지를 내민다)', next: 'open_note' },
 
   // 거절한다 path
   { id: 'reject1', speaker: '나', text: '...제가 왜요?' },
-  { id: 'reject2', speaker: '할머니', text: '손주가 부탁한 건데 한 번 읽어만 봐줄 수 있을까? (쪽지를 내민다)', next: 'open_note' },
+  { id: 'reject2', speaker: '할머니', text: '냐냐........냐?(저기, 글이 많이 올라가면 좋다는데.. 할미가 글도 틀리고 그러면 애가 부끄럽잖아... 한 번 읽어만 봐줄 수 있을까?)(쪽지를 내민다)', next: 'open_note' },
 
   // Note interaction
   { id: 'open_note', speaker: '', text: '(쪽지가 펼쳐진다)', onEnter: (ui) => ui.showNote() },
   {
     id: 'choice2', speaker: '', text: '(쪽지 내용을 읽었다)',
     choices: [
-      { text: '입론을 돕는다', next: 'help_construct' },
+      { text: '할머니를 돕는다', next: 'help_construct' },
       { text: '내 갈 길을 간다', next: 'go_my_way' }
     ]
   },
 
-  // 입론을 돕는다
-  { id: 'help_construct', speaker: '나', text: '제대로 적어서 제출해드려야겠다!' }, // don't hide note yet
-  { id: 'help_construct2', speaker: '할머니', text: '정말 고마워... 학생 없었으면 큰일날 뻔 했어..' },
-  { id: 'typing_phase', speaker: '', text: '(할머니의 쪽지를 올바른 맞춤법으로 고쳐 적어 제출하자.)', onEnter: (ui) => ui.showTypeUI() },
+  // 할머니를 돕는다
+  { id: 'help_construct', speaker: '나', text: '틀린 부분이 있네. 맞춤법을 고쳐서 올려드려야겠다!' }, // don't hide note yet
+  { id: 'help_construct2', speaker: '할머니', text: '냐냐냥... 냐냐...(정말 고마워... 학생 없었으면 큰일날 뻔 했어. 애가 아주 좋아할 거여.)' },
+  { id: 'typing_phase', speaker: '', text: '(할머니의 쪽지를 올바른 맞춤법으로 고쳐 적자.)', onEnter: (ui) => ui.showTypeUI() },
 
   // 내 갈 길을 간다
-  { id: 'go_my_way', speaker: '나', text: '아 좀 가시라구요!', onEnter: (ui) => ui.hideNote() },
-  { id: 'go_my_way2', speaker: '할머니', text: '내가 잘 몰라서.. 미안혀... 조심히 가요..' },
+  { id: 'go_my_way', speaker: '나', text: '아 귀찮게... 가세요. 자기 일은 자기가 알아서 해야지...', onEnter: (ui) => ui.hideNote() },
+  { id: 'go_my_way2', speaker: '할머니', text: '냐냐냥..... 냥냥.(내가 잘 몰라서.. 미안혀... 조심히 가요.)' },
   { id: 'drop_note', speaker: '', text: '(쪽지가 바닥에 떨어진다)', onEnter: (ui) => ui.dropNote(), next: 'choice3' },
 
   {
