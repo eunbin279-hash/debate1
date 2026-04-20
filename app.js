@@ -24,17 +24,12 @@ if (window.DebateCore) {
     try {
       const simBtn = document.getElementById('simFinalBtn')
       if (simBtn) {
-        if (info.nickname === 'ian') simBtn.classList.remove('hidden')
-        else simBtn.classList.add('hidden')
+        simBtn.classList.add('hidden')
       }
-      // Also hide the bottom toggle button unless user is 'ian'
+      // Also hide the bottom toggle button
       const simToggle = document.getElementById('simToggleBtn')
       if (simToggle) {
-        if (info.nickname === 'ian') {
-          simToggle.style.display = ''
-        } else {
-          simToggle.style.display = 'none'
-        }
+        simToggle.style.display = 'none'
       }
     } catch (e) { /* ignore */ }
     window.myMessages = [];
@@ -117,10 +112,12 @@ if (window.DebateCore) {
 
       updateAdoptList();
 
-      // If an auto-sim trigger checker is defined, call it now (safe to call repeatedly)
+      // Auto-sim trigger disabled
+      /*
       if (typeof window.checkAutoSimTrigger === 'function') {
         try { window.checkAutoSimTrigger(); } catch (err) { console.error('auto-sim trigger error', err); }
       }
+      */
 
       // Render all cats (and create if missing)
       const MAX_CATS = 6;
@@ -236,6 +233,7 @@ window.startSimulationAuto = window.startSimulationAuto || function () {
 };
 
 window.checkAutoSimTrigger = window.checkAutoSimTrigger || function () {
+  return; // Disabled
   try {
     if (!window.debateInfo) return;
     if (window.debateInfo.nickname === 'ian') return; // only for non-ian users
@@ -434,8 +432,13 @@ function renderCatBubbles(catEl) {
   const stack = catEl.querySelector('.bubble-stack')
   const isExpanded = catEl.classList.contains('expanded')
 
-  // Clear original stack content
+  // Safety check for stack element
+  if (!stack) return;
+
   stack.innerHTML = ''
+
+  // If there are no messages, don't try to render anything
+  if (thread.length === 0) return;
 
   // If collapsed, only show latest (first sentence)
   if (!isExpanded) {
@@ -480,7 +483,7 @@ function renderCatBubbles(catEl) {
   // Build bubbles into overlay
   const showHistory = catEl._showHistory || false
 
-  const msgsToShow = showHistory ? thread : [thread[thread.length - 1]]
+  const msgsToShow = showHistory ? thread : (thread.length > 0 ? [thread[thread.length - 1]] : [])
 
   msgsToShow.forEach((msg, idx) => {
     const isLastMsg = (msg === thread[thread.length - 1])
