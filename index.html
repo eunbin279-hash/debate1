@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>토론마당</title>
+  <title>토론 게시판</title>
   <!-- Google Fonts & Pretendard -->
   <link rel="stylesheet" as="style" crossorigin
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
@@ -33,89 +33,90 @@
         </div>
       </div>
 
+      <!-- Simulation Start Tab -->
+      <div id="simStartTab" class="sim-start-tab">
+        <span>시뮬레이션 시작하기</span>
+      </div>
+
     </div>
 
-    <!-- Persistent Sidebar for My Yard -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h3>우리 집</h3>
-        <p>나를 설득한 친구들</p>
-      </div>
-      <div id="adoptList" class="adopt-list">아직 없습니다.</div>
-    </aside>
-  </div>
-
-  <!-- Custom Input Modal -->
-  <div id="userInputModal" class="input-modal hidden">
-    <div class="input-overlay"></div>
-    <div class="input-card">
-      <h3 class="modal-title">네 생각은 어때?</h3>
-      <textarea id="customUserInput" placeholder="여기에 입력하세요 (30자 이내)" maxlength="30"></textarea>
-      <div class="input-actions">
-        <button id="cancelInputBtn" class="btn btn-secondary">취소</button>
-        <button id="submitInputBtn" class="btn btn-primary">외치기</button>
-      </div>
-    </div>
-  </div>
 
 
-
-  <!-- 시뮬레이션 모달 -->
-  <div id="simModal" class="sim-modal hidden">
-    <div class="sim-overlay"></div>
-    <div class="sim-scene">
-      <div id="simCharacter" class="sim-character hidden">
-        <img src="img/grandma.png" alt="할머니" class="sim-char-img">
-      </div>
-      <div id="simNote" class="sim-note hidden">
-        <b>상대 측 의견</b><br><br>
-        최근 동물원에 대항 의견이 마니 나옴미다. <br>
-        동물의 권리능 보장대야 함미다.<br>
-        자연에성 살수업는 경우두 이씁니당.
-      </div>
-    </div>
-
-    <div class="sim-ui">
-      <div id="simSpeaker" class="sim-speaker"></div>
-      <div id="simText" class="sim-text"></div>
-      <div id="simChoices" class="sim-choices hidden"></div>
-      <div id="simNextIndicator" class="sim-next-indicator">▼ Click</div>
-    </div>
-
-    <!-- 타이핑 받아적기 UI -->
-    <div id="simTypeUI" class="sim-type-ui hidden">
-      <div class="sim-type-header">맞춤법 고쳐서 받아적기</div>
-      <textarea id="simTypeInput" placeholder="할머니의 쪽지 내용을 올바른 맞춤법으로 다시 적어주세요."></textarea>
-      <div class="sim-type-actions">
-        <span id="simTypeCount" class="type-count">0/100</span>
-        <div>
-          <button id="simTypeSubmitBtn" class="btn btn-primary">작성 완료</button>
+    <!-- Custom Input Modal -->
+    <div id="userInputModal" class="input-modal hidden">
+      <div class="input-overlay"></div>
+      <div class="input-card">
+        <h3 class="modal-title">네 생각은 어때?</h3>
+        <textarea id="customUserInput" placeholder="여기에 입력하세요 (30자 이내)" maxlength="30"></textarea>
+        <div class="input-actions">
+          <button id="cancelInputBtn" class="btn btn-secondary">취소</button>
+          <button id="submitInputBtn" class="btn btn-primary">외치기</button>
         </div>
       </div>
     </div>
 
-    <button id="simFinalBtn" class="sim-final-btn hidden">입론하기</button>
-  </div>
 
-  <script src="https://debate-md2-2603.web.app/debate-core.js" data-architect-id="ian"></script>
-  <script src="app.js"></script>
 
-  <!-- SVG Filters for Sketch/Pencil Effect -->
-  <svg style="display: none;">
-    <filter id="pencil-sketch" x="-20%" y="-20%" width="140%" height="140%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
-      <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" xChannelSelector="R" yChannelSelector="G" />
-    </filter>
-  </svg>
+    <!-- 시뮬레이션 모달 -->
+    <div id="simModal" class="sim-modal hidden">
+      <div class="sim-overlay"></div>
+      <div class="sim-scene">
+        <div id="simCharacter" class="sim-character hidden">
+          <!-- Grandma SVG placeholder -->
+          <div id="grandmaSvgContainer"></div>
+        </div>
+        <div id="simNote" class="sim-note hidden">
+          <b>상대 측 의견</b><br><br>
+          최근 동물원에 대항 의견이 마니 나옴미다. <br>
+          동물의 권리능 보장대야 함미다.<br>
+          자연에성 살수업는 경우두 이씁니당.
+        </div>
+      </div>
 
-  <!-- Minimal waiting modal -->
-  <div id="waitingModal" class="waiting-modal hidden" aria-hidden="true">
-    <div class="waiting-card">
-      <div class="spinner" aria-hidden="true"></div>
-      <div class="waiting-text">접속 대기 중</div>
-      <div class="waiting-count" id="waitingCount">0명</div>
+      <div class="sim-ui">
+        <div id="simSpeaker" class="sim-speaker"></div>
+        <div id="simText" class="sim-text"></div>
+        <div id="simChoices" class="sim-choices hidden"></div>
+        <div id="simNextIndicator" class="sim-next-indicator">▼ Click</div>
+      </div>
+
+      <!-- Lonely visual effect overlay -->
+      <div class="sim-lonely-fx"></div>
+
+      <!-- 타이핑 받아적기 UI -->
+      <div id="simTypeUI" class="sim-type-ui hidden">
+        <div class="sim-type-header">맞춤법 고쳐서 받아적기</div>
+        <textarea id="simTypeInput" placeholder="할머니의 쪽지 내용을 올바른 맞춤법으로 다시 적어주세요."></textarea>
+        <div class="sim-type-actions">
+          <span id="simTypeCount" class="type-count">0/100</span>
+          <div>
+            <button id="simTypeSubmitBtn" class="btn btn-primary">작성 완료</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="simFinalBtn" class="sim-final-btn hidden">입론하기</button>
     </div>
-  </div>
+
+    <script src="https://debate-md2-2603.web.app/debate-core.js" data-architect-id="ian"></script>
+    <script src="app.js"></script>
+
+    <!-- SVG Filters for Sketch/Pencil Effect -->
+    <svg style="display: none;">
+      <filter id="pencil-sketch" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </svg>
+
+    <!-- Minimal waiting modal -->
+    <div id="waitingModal" class="waiting-modal hidden" aria-hidden="true">
+      <div class="waiting-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="waiting-text">접속 대기 중</div>
+        <div class="waiting-count" id="waitingCount">0명</div>
+      </div>
+    </div>
 </body>
 
 </html>
