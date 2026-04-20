@@ -660,11 +660,11 @@ document.addEventListener('click', (e) => {
 
 // --- Simulation Game Logic ---
 const simScript = [
-  { id: 'start', speaker: '', text: '저기...', onEnter: (ui) => ui.hideChar() },
-  { id: 's2', speaker: '할머니', text: '나 좀 도와줄 수 있는가...?', onEnter: (ui) => ui.showChar() },
-  { id: 's3', speaker: '할머니', text: '내가 잘 몰라가지고.. 입론을 할 수가 없네...' },
+  { id: 'start', speaker: '', text: '냐...(저기...)', onEnter: (ui) => ui.hideChar() },
+  { id: 's2', speaker: '할머니', text: '냐, 냐냐...?(나 좀 도와줄 수 있는가...?)', onEnter: (ui) => ui.showChar() },
+  { id: 's3', speaker: '할머니', text: '냐냐냥... 냐냐...(내가 글을 잘 몰라가지고.. 손주를 도와줄 수가 없네...)' },
   {
-    id: 'choice1', speaker: '할머니', text: '내가 잘 몰라가지고.. 입론을 할 수가 없네...',
+    id: 'choice1', speaker: '할머니', text: '냐냐냥... 냐냐...(내가 글을 잘 몰라가지고.. 손주를 도와줄 수가 없네...)',
     choices: [
       { text: '도와준다', next: 'help1' },
       { text: '거절한다', next: 'reject1' }
@@ -672,31 +672,31 @@ const simScript = [
   },
 
   // 도와준다 path
-  { id: 'help1', speaker: '나', text: '네! 그럼요' },
-  { id: 'help2', speaker: '할머니', text: '여기.. (쪽지를 내민다)', next: 'open_note' },
+  { id: 'help1', speaker: '나', text: '네!' },
+  { id: 'help2', speaker: '할머니', text: '냐...(저기, 글이 많이 올라가면 좋다는데.. 할미가 글도 틀리고 그러면 애가 부끄럽잖아...)(쪽지를 내민다)', next: 'open_note' },
 
   // 거절한다 path
   { id: 'reject1', speaker: '나', text: '...제가 왜요?' },
-  { id: 'reject2', speaker: '할머니', text: '손주가 부탁한 건데 한 번 읽어만 봐줄 수 있을까? (쪽지를 내민다)', next: 'open_note' },
+  { id: 'reject2', speaker: '할머니', text: '냐냐........냐?(저기, 글이 많이 올라가면 좋다는데.. 할미가 글도 틀리고 그러면 애가 부끄럽잖아... 한 번 읽어만 봐줄 수 있을까?)(쪽지를 내민다)', next: 'open_note' },
 
   // Note interaction
   { id: 'open_note', speaker: '', text: '(쪽지가 펼쳐진다)', onEnter: (ui) => ui.showNote() },
   {
     id: 'choice2', speaker: '', text: '(쪽지 내용을 읽었다)',
     choices: [
-      { text: '입론을 돕는다', next: 'help_construct' },
+      { text: '할머니를 돕는다', next: 'help_construct' },
       { text: '내 갈 길을 간다', next: 'go_my_way' }
     ]
   },
 
-  // 입론을 돕는다
-  { id: 'help_construct', speaker: '나', text: '제대로 적어서 제출해드려야겠다!' }, // don't hide note yet
-  { id: 'help_construct2', speaker: '할머니', text: '정말 고마워... 학생 없었으면 큰일날 뻔 했어..' },
-  { id: 'typing_phase', speaker: '', text: '(할머니의 쪽지를 올바른 맞춤법으로 고쳐 적어 제출하자.)', onEnter: (ui) => ui.showTypeUI() },
+  // 할머니를 돕는다
+  { id: 'help_construct', speaker: '나', text: '틀린 부분이 있네. 맞춤법을 고쳐서 올려드려야겠다!' }, // don't hide note yet
+  { id: 'help_construct2', speaker: '할머니', text: '냐냐냥... 냐냐...(정말 고마워... 학생 없었으면 큰일날 뻔 했어. 애가 아주 좋아할 거여.)' },
+  { id: 'typing_phase', speaker: '', text: '(할머니의 쪽지를 올바른 맞춤법으로 고쳐 적자.)', onEnter: (ui) => ui.showTypeUI() },
 
   // 내 갈 길을 간다
-  { id: 'go_my_way', speaker: '나', text: '아 좀 가시라구요!', onEnter: (ui) => ui.hideNote() },
-  { id: 'go_my_way2', speaker: '할머니', text: '내가 잘 몰라서.. 미안혀... 조심히 가요..' },
+  { id: 'go_my_way', speaker: '나', text: '아 귀찮게... 가세요. 자기 일은 자기가 알아서 해야지...', onEnter: (ui) => ui.hideNote() },
+  { id: 'go_my_way2', speaker: '할머니', text: '냐냐냥..... 냥냥.(내가 잘 몰라서.. 미안혀... 조심히 가요.)' },
   { id: 'drop_note', speaker: '', text: '(쪽지가 바닥에 떨어진다)', onEnter: (ui) => ui.dropNote(), next: 'choice3' },
 
   {
