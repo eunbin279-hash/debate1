@@ -123,8 +123,10 @@ if (window.DebateCore) {
       }
 
       // Render all cats (and create if missing)
-      const MAX_CATS = 6;
-      const usersToRender = Object.keys(threads).filter(t => t !== 'user').slice(-MAX_CATS);
+      const MAX_TOTAL_CATS = 12; 
+      const ACTIVE_CATS_COUNT = 5;
+      const allUsers = Object.keys(threads).filter(t => t !== 'user');
+      const usersToRender = allUsers.slice(-MAX_TOTAL_CATS);
 
       // Clean up old cats beyond max limit
       Array.from(document.querySelectorAll('.cat')).forEach(catEl => {
@@ -135,7 +137,7 @@ if (window.DebateCore) {
         }
       });
 
-      usersToRender.forEach(nick => {
+      usersToRender.forEach((nick, idx) => {
         let catEl = document.querySelector(`.cat[data-id="${nick}"]`);
         if (!catEl) {
           catEl = document.createElement('div');
@@ -154,6 +156,15 @@ if (window.DebateCore) {
           `;
           catsWrap.appendChild(catEl);
         }
+
+        // Apply background styling to older cats
+        const isBackground = idx < (usersToRender.length - ACTIVE_CATS_COUNT);
+        if (isBackground) {
+          catEl.classList.add('bg-cat');
+        } else {
+          catEl.classList.remove('bg-cat');
+        }
+
         renderCatBubbles(catEl);
       });
 
@@ -581,23 +592,23 @@ function renderCatBubbles(catEl) {
     const overlayWidth = Math.min(320, vw - 20)
     overlay.style.width = overlayWidth + 'px'
 
+    const isMobile = vw < 700
+    const topLimit = isMobile ? 65 : 10 // Avoid title area on mobile
     const preferTop = rect.top > window.innerHeight / 3
 
-    // make sure overlay has rendered size
     const oh = overlay.offsetHeight || 0
-
     const left = Math.min(Math.max(10, rect.left + rect.width / 2 - overlayWidth / 2), vw - overlayWidth - 10)
 
-    if (preferTop) {
+    if (preferTop && (rect.top - oh - 12 > topLimit)) {
       // place above if space
-      const top = Math.max(10, rect.top - oh - 12)
+      const top = Math.max(topLimit, rect.top - oh - 12)
       overlay.style.left = left + 'px'
       overlay.style.top = top + 'px'
     } else {
       // place below
       const top = Math.min(window.innerHeight - 10 - oh, rect.bottom + 8)
       overlay.style.left = left + 'px'
-      overlay.style.top = top + 'px'
+      overlay.style.top = Math.max(topLimit, top) + 'px'
     }
 
     // Ensure overlay scroll. If history is shown just now, scroll to top? Or keep it at bottom?

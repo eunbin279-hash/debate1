@@ -90,7 +90,7 @@ body {
   text-align: center;
   position: relative;
   /* Not absolute anymore */
-  z-index: 5000;
+  z-index: 100;
 }
 
 .top h1 {
@@ -287,6 +287,14 @@ body {
     padding: 12px;
   }
 
+  .top {
+    padding: 15px 10px 5px 10px;
+  }
+
+  .top h1 {
+    font-size: 22px;
+  }
+
   .cat {
     width: 90px;
   }
@@ -397,6 +405,30 @@ body {
   padding: 4px 12px;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.cat.bg-cat {
+  opacity: 0.4;
+  transform: scale(0.65);
+  z-index: 5;
+  filter: grayscale(0.6) brightness(0.9);
+  transition: all 0.4s ease;
+}
+
+.cat.bg-cat:hover {
+  opacity: 0.9;
+  transform: scale(0.8);
+  filter: grayscale(0.2) brightness(1);
+  z-index: 50;
+}
+
+.cat.bg-cat .bubble-stack {
+  display: none;
+}
+
+.cat.bg-cat.expanded .bubble-stack,
+.cat.bg-cat:hover .bubble-stack {
+  display: flex;
 }
 
 .cat img {
@@ -834,6 +866,7 @@ body {
   max-width: 90vw;
   box-sizing: border-box;
   padding: 10px;
+  z-index: 8000; /* Ensure it is above the title */
 }
 
 /* Close (X) button for overlay */
