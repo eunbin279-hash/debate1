@@ -48,8 +48,9 @@ if (window.DebateCore) {
       }).catch(err => console.error('Payload save error:', err));
     };
 
-    // Attempt saving side once to initialize
-    window.saveMyPayload();
+    // Move window.myMessages and window.myAgrees initialization here
+    // but DON'T call saveMyPayload immediately as it overwrites existing data on server.
+    // window.saveMyPayload(); 
 
     window.usedSlots = new Set();
     const slots = [
@@ -73,8 +74,11 @@ if (window.DebateCore) {
         const data = payloads[nick];
 
         if (nick === info.nickname) {
-          window.myMessages = data.messages || [];
-          window.myAgrees = data.agrees || [];
+          // Only update if data exists to avoid resetting to empty on accidental empty payload triggers
+          if (data) {
+            window.myMessages = data.messages || [];
+            window.myAgrees = data.agrees || [];
+          }
         }
 
         if (data && data.messages && Array.isArray(data.messages)) {
@@ -292,6 +296,49 @@ window.clearSeenSimForCurrent = function () {
     window._autoSimRunSet.delete(key);
   } catch (e) { /* ignore */ }
 }
+
+// Dev helper: if URL has ?debug=1, show a small test button to simulate payloads and trigger auto-sim
+function createAutoSimTestButton() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('debug')) return;
+
+    const btn = document.createElement('button');
+    btn.textContent = 'TEST: AutoSim';
+    btn.style.position = 'fixed';
+    btn.style.right = '12px';
+    btn.style.bottom = '12px';
+    btn.style.zIndex = 99999;
+    btn.style.padding = '8px 10px';
+    btn.style.background = '#0b5fff';
+    btn.style.color = '#fff';
+    btn.style.border = 'none';
+    btn.style.borderRadius = '6px';
+    btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Build 5 mock messages and set agreeCounts so one has agrees
+      const now = Date.now();
+      window.allMessages = [
+        { sender: 'u1', text: '의견 1', time: now - 5000, side: 'con' },
+        { sender: 'u2', text: '의견 2', time: now - 4000, side: 'con' },
+        { sender: 'u3', text: '의견 3', time: now - 3000, side: 'con' },
+        { sender: 'u4', text: '의견 4', time: now - 2000, side: 'con' },
+        { sender: 'u5', text: '의견 5', time: now - 1000, side: 'con' }
+      ];
+      // give one message some agrees
+      const bid = `${window.allMessages[2].sender}_${window.allMessages[2].time}`;
+      window.agreeCounts = {};
+      window.agreeCounts[bid] = 2;
+
+      // Mirror payload-like structure so other code can inspect
+      try { window.checkAutoSimTrigger(); } catch (err) { console.error('auto-sim test trigger failed', err); }
+    });
+    document.body.appendChild(btn);
+  } catch (e) { /* ignore in restricted environments */ }
+}
+
+createAutoSimTestButton();
 
 
 const CAT_IMAGES = {
