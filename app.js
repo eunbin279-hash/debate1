@@ -24,12 +24,17 @@ if (window.DebateCore) {
     try {
       const simBtn = document.getElementById('simFinalBtn')
       if (simBtn) {
-        simBtn.classList.add('hidden')
+        if (info.nickname === 'ian') simBtn.classList.remove('hidden')
+        else simBtn.classList.add('hidden')
       }
-      // Also hide the bottom toggle button
+      // Also hide the bottom toggle button unless user is 'ian'
       const simToggle = document.getElementById('simToggleBtn')
       if (simToggle) {
-        simToggle.style.display = 'none'
+        if (info.nickname === 'ian') {
+          simToggle.style.display = ''
+        } else {
+          simToggle.style.display = 'none'
+        }
       }
     } catch (e) { /* ignore */ }
     window.myMessages = [];
@@ -112,12 +117,10 @@ if (window.DebateCore) {
 
       updateAdoptList();
 
-      // Auto-sim trigger disabled
-      /*
+      // Auto-sim trigger
       if (typeof window.checkAutoSimTrigger === 'function') {
         try { window.checkAutoSimTrigger(); } catch (err) { console.error('auto-sim trigger error', err); }
       }
-      */
 
       // Render all cats (and create if missing)
       const MAX_CATS = 6;
@@ -233,7 +236,6 @@ window.startSimulationAuto = window.startSimulationAuto || function () {
 };
 
 window.checkAutoSimTrigger = window.checkAutoSimTrigger || function () {
-  return; // Disabled
   try {
     if (!window.debateInfo) return;
     if (window.debateInfo.nickname === 'ian') return; // only for non-ian users
@@ -242,41 +244,37 @@ window.checkAutoSimTrigger = window.checkAutoSimTrigger || function () {
     // per-session guard
     if (window._autoSimRunSet.has(key)) return; // already triggered in this session
 
-    // per-user persisted guard (localStorage) so the same person on the same device won't see it again
+    // per-user persisted guard (localStorage)
     const nick = window.debateInfo.nickname || 'anon';
     const seenKey = `seenSim:${key}:${nick}`;
     try {
-      if (localStorage.getItem(seenKey)) return; // already seen by this user on this device
-    } catch (err) {
-      // localStorage may be unavailable in some environments; ignore and proceed with session-only guard
-    }
+      if (localStorage.getItem(seenKey)) return;
+    } catch (err) {}
 
-    const opinionsCount = (window.allMessages && Array.isArray(window.allMessages)) ? window.allMessages.length : 0;
-    if (opinionsCount < 5) return; // need at least 5 opinions
+    // Find the highest-agreed message from the OPPOSITE side
+    const mySide = window.debateInfo.side || 'unassigned';
+    const oppositeSide = mySide === 'pro' ? 'con' : 'pro';
 
-    // Find the highest-agreed message and require it has at least 1 agree
-    let maxAgrees = 0;
-    let bestMsg = null;
+    let maxAgreesAcrossOpposite = 0;
     if (window.allMessages && window.agreeCounts) {
       window.allMessages.forEach(m => {
+        if (m.side !== oppositeSide) return; // Only check opposite side
         const id = `${m.sender}_${m.time}`;
         const c = window.agreeCounts[id] || 0;
-        if (c > maxAgrees) {
-          maxAgrees = c;
-          bestMsg = m;
+        if (c > maxAgreesAcrossOpposite) {
+          maxAgreesAcrossOpposite = c;
         }
       });
     }
 
-    if (!bestMsg || maxAgrees <= 0) return; // no agreed opinion yet
+    // Trigger simulation if at least one message from opposite side has 4+ agrees
+    if (maxAgreesAcrossOpposite < 4) return; 
 
-    // Mark as triggered (session) and persist seen flag (per-device/user)
+    // Mark as triggered
     window._autoSimRunSet.add(key);
     try {
       localStorage.setItem(seenKey, String(Date.now()));
-    } catch (err) {
-      // ignore storage errors
-    }
+    } catch (err) {}
     if (typeof window.startSimulationAuto === 'function') window.startSimulationAuto();
   } catch (err) {
     console.error('checkAutoSimTrigger error', err);
