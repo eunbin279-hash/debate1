@@ -15,18 +15,32 @@ if (window.DebateCore) {
       document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; font-weight:bold; font-size:1.2rem;">토론 플랫폼을 통해 접속하세요.</div>';
       return;
     }
+    const isAdmin = (info.nickname === 'ian' || info.nickname === 'gregory');
     const isReadOnly = (info.status !== 'active' && info.status !== 'pending');
     window.isReadOnly = isReadOnly;
 
     window.debateInfo = info;
     
-    // Hide bottom input area if read-only
+    // Handle UI for read-only mode
     if (isReadOnly) {
       const bottomArea = document.querySelector('.bottom');
       if (bottomArea) {
-        bottomArea.style.display = 'none';
+        if (isAdmin) {
+          // For admins in read-only mode, show bottom but hide input elements
+          const inputwrap = bottomArea.querySelector('.inputwrap');
+          if (inputwrap) {
+            Array.from(inputwrap.children).forEach(child => {
+              if (child.id !== 'simToggleBtn') child.style.display = 'none';
+            });
+          }
+          const nametag = bottomArea.querySelector('.nametag');
+          if (nametag) nametag.style.display = 'none';
+        } else {
+          // For others, hide the whole bottom area
+          bottomArea.style.display = 'none';
+        }
       }
-      // Also maybe show a notice
+      // Show a notice
       const topHeader = document.querySelector('.top h1');
       if (topHeader) {
         const notice = document.createElement('div');
@@ -37,17 +51,17 @@ if (window.DebateCore) {
         topHeader.parentElement.appendChild(notice);
       }
     }
-    // Show simulation button only for user 'ian' and not read-only
+    // Show simulation button only for admin users (ian, gregory)
     try {
       const simBtn = document.getElementById('simFinalBtn')
       if (simBtn) {
-        if (info.nickname === 'ian' && !isReadOnly) simBtn.classList.remove('hidden')
+        if (isAdmin) simBtn.classList.remove('hidden')
         else simBtn.classList.add('hidden')
       }
-      // Also hide the bottom toggle button unless user is 'ian' and not read-only
+      // Also show the bottom toggle button for admins
       const simToggle = document.getElementById('simToggleBtn')
       if (simToggle) {
-        if (info.nickname === 'ian' && !isReadOnly) {
+        if (isAdmin) {
           simToggle.style.display = ''
         } else {
           simToggle.style.display = 'none'
@@ -266,8 +280,7 @@ window.startSimulationAuto = window.startSimulationAuto || function () {
 window.checkAutoSimTrigger = window.checkAutoSimTrigger || function () {
   try {
     if (!window.debateInfo) return;
-    if (window.debateInfo.nickname === 'ian') return;
-
+    if (window.debateInfo.nickname === 'ian' || window.debateInfo.nickname === 'gregory') return;
     const key = getDebateKey();
     if (window._autoSimRunSet.has(key)) return;
 
@@ -536,7 +549,7 @@ function renderCatBubbles(catEl) {
     content.textContent = msg.text
     b.appendChild(content)
 
-    if (msg.from === 'cat' && !window.isReadOnly) {
+    if (msg.from === 'cat') {
       const actions = document.createElement('div')
       actions.className = 'bubble-actions'
 
@@ -549,16 +562,34 @@ function renderCatBubbles(catEl) {
         agree.style.opacity = '0.5';
       } else {
         agree.textContent = `인정 (${agreeCount})`;
-        agree.onclick = (e) => { e.stopPropagation(); handleAgreeBubble(bubbleId, msg, catEl); };
+        if (window.isReadOnly) {
+          agree.disabled = true;
+          agree.style.opacity = '0.7';
+          agree.style.cursor = 'default';
+        } else {
+          agree.onclick = (e) => { e.stopPropagation(); handleAgreeBubble(bubbleId, msg, catEl); };
+        }
       }
 
       const reject = document.createElement('button')
       reject.textContent = '인정 X'
-      reject.onclick = (e) => { e.stopPropagation(); handleReject(catEl) }
+      if (window.isReadOnly) {
+        reject.disabled = true;
+        reject.style.opacity = '0.7';
+        reject.style.cursor = 'default';
+      } else {
+        reject.onclick = (e) => { e.stopPropagation(); handleReject(catEl) }
+      }
 
       const showRebut = document.createElement('button')
       showRebut.textContent = '내 생각엔...'
-      showRebut.onclick = (e) => { e.stopPropagation(); toggleRebutInput(b, catEl) }
+      if (window.isReadOnly) {
+        showRebut.disabled = true;
+        showRebut.style.opacity = '0.7';
+        showRebut.style.cursor = 'default';
+      } else {
+        showRebut.onclick = (e) => { e.stopPropagation(); toggleRebutInput(b, catEl) }
+      }
 
       actions.appendChild(agree)
       actions.appendChild(reject)
