@@ -15,22 +15,39 @@ if (window.DebateCore) {
       document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; font-weight:bold; font-size:1.2rem;">토론 플랫폼을 통해 접속하세요.</div>';
       return;
     }
-    if (info.status !== 'active' && info.status !== 'pending') {
-      document.body.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100vh; font-weight:bold; font-size:1.2rem;">토론이 진행중이지 않습니다. (상태: ${info.status})</div>`;
-      return;
-    }
+    const isReadOnly = (info.status !== 'active' && info.status !== 'pending');
+    window.isReadOnly = isReadOnly;
+
     window.debateInfo = info;
-    // Show simulation button only for user 'ian'
+    
+    // Hide bottom input area if read-only
+    if (isReadOnly) {
+      const bottomArea = document.querySelector('.bottom');
+      if (bottomArea) {
+        bottomArea.style.display = 'none';
+      }
+      // Also maybe show a notice
+      const topHeader = document.querySelector('.top h1');
+      if (topHeader) {
+        const notice = document.createElement('div');
+        notice.style.fontSize = '14px';
+        notice.style.color = 'var(--point-color)';
+        notice.style.marginTop = '10px';
+        notice.textContent = (info.status === 'calculating' ? '● 토론 집계 중 (보기 전용 모드)' : '● 토론 종료 (보기 전용 모드)');
+        topHeader.parentElement.appendChild(notice);
+      }
+    }
+    // Show simulation button only for user 'ian' and not read-only
     try {
       const simBtn = document.getElementById('simFinalBtn')
       if (simBtn) {
-        if (info.nickname === 'ian') simBtn.classList.remove('hidden')
+        if (info.nickname === 'ian' && !isReadOnly) simBtn.classList.remove('hidden')
         else simBtn.classList.add('hidden')
       }
-      // Also hide the bottom toggle button unless user is 'ian'
+      // Also hide the bottom toggle button unless user is 'ian' and not read-only
       const simToggle = document.getElementById('simToggleBtn')
       if (simToggle) {
-        if (info.nickname === 'ian') {
+        if (info.nickname === 'ian' && !isReadOnly) {
           simToggle.style.display = ''
         } else {
           simToggle.style.display = 'none'
@@ -249,44 +266,27 @@ window.startSimulationAuto = window.startSimulationAuto || function () {
 window.checkAutoSimTrigger = window.checkAutoSimTrigger || function () {
   try {
     if (!window.debateInfo) return;
-    if (window.debateInfo.nickname === 'ian') return; // only for non-ian users
+    if (window.debateInfo.nickname === 'ian') return;
 
     const key = getDebateKey();
-    // per-session guard
-    if (window._autoSimRunSet.has(key)) return; // already triggered in this session
+    if (window._autoSimRunSet.has(key)) return;
 
-    // per-user persisted guard (localStorage)
     const nick = window.debateInfo.nickname || 'anon';
     const seenKey = `seenSim:${key}:${nick}`;
     try {
       if (localStorage.getItem(seenKey)) return;
     } catch (err) {}
 
-    // Find the highest-agreed message from the OPPOSITE side
-    const mySide = window.debateInfo.side || 'unassigned';
-    const oppositeSide = mySide === 'pro' ? 'con' : 'pro';
-
-    let maxAgreesAcrossOpposite = 0;
-    if (window.allMessages && window.agreeCounts) {
-      window.allMessages.forEach(m => {
-        if (m.side !== oppositeSide) return; // Only check opposite side
-        const id = `${m.sender}_${m.time}`;
-        const c = window.agreeCounts[id] || 0;
-        if (c > maxAgreesAcrossOpposite) {
-          maxAgreesAcrossOpposite = c;
-        }
-      });
-    }
-
-    // Trigger simulation if at least one message from opposite side has 4+ agrees
-    if (maxAgreesAcrossOpposite < 4) return; 
-
-    // Mark as triggered
     window._autoSimRunSet.add(key);
     try {
       localStorage.setItem(seenKey, String(Date.now()));
     } catch (err) {}
-    if (typeof window.startSimulationAuto === 'function') window.startSimulationAuto();
+    
+    if (typeof window.startSimulationAuto === 'function') {
+      setTimeout(() => {
+        window.startSimulationAuto();
+      }, 1000);
+    }
   } catch (err) {
     console.error('checkAutoSimTrigger error', err);
   }
@@ -536,7 +536,7 @@ function renderCatBubbles(catEl) {
     content.textContent = msg.text
     b.appendChild(content)
 
-    if (msg.from === 'cat') {
+    if (msg.from === 'cat' && !window.isReadOnly) {
       const actions = document.createElement('div')
       actions.className = 'bubble-actions'
 
@@ -1047,7 +1047,9 @@ if (simFinalBtn) {
 
     const userCat = document.querySelector('.cat[data-id="user"]');
     if (userCat) {
-      if (window.debateInfo) {
+      if (window.isReadOnly) {
+        alert('토론이 종료되어 의견을 상정할 수 없습니다. 내용은 여기까지만 확인해주세요!');
+      } else if (window.debateInfo) {
         window.myMessages.push({ target: window.debateInfo.nickname, text: finalArgument, time: Date.now() });
         window.saveMyPayload();
         if (!threads['user']) threads['user'] = [];
